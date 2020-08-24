@@ -1,0 +1,450 @@
+---
+title: 
+author: Daniel Dulaney
+date: August 23, 2020
+output: 
+  html_document:
+    toc_float: true
+editor_options: 
+  chunk_output_type: console
+---
+
+```{r, include=FALSE}
+library(MASS)
+library(tidyverse)
+library(here)
+library(GGally)
+library(ISLR)
+library(broom)
+```
+
+## Chapter 2 Questions
+
+### (7)
+
+**(a)**
+
+Obs 1: $\sqrt{(0 - 0)^2 + (0 - 3)^2 + (0 - 0)^2} = 9$
+
+Obs 2: $\sqrt{(0 - 2)^2 + (0 - 0)^2 + (0 - 0)^2} = 4$
+
+Obs 3: $\sqrt{(0 - 0)^2 + (0 - 1)^2 + (0 - 3)^2} = 10$
+
+Obs 4: $\sqrt{(0 - 0)^2 + (0 - 1)^2 + (0 - 2)^2} = 5$
+
+Obs 5: $\sqrt{(0 - -1)^2 + (0 - 0)^2 + (0 - 1)^2} = 2$
+
+Obs 6: $\sqrt{(0 - 1)^2 + (0 - 1)^2 + (0 - 1)^2} = 3$
+
+**(b)**
+
+With K = 1, our prediction is Green because observation 5 is the closest to our new point and it is Green.
+
+**(c)**
+
+With K = 3, our prediction is Red because 2 of the 3 closest observations are Red.
+
+**(d)**
+
+To fit a highly non-linear function, we want our model to be very flexible. With a small K, the boundary 
+will be less rigid and will be closer to fitting the non-linear $f$. 
+
+### (10)
+
+**(a)**
+
+```{r}
+bos <- Boston
+
+nrow(bos)
+ncol(bos)
+```
+
+14 columns, 506 rows.
+
+The columns represent various attributes about a house, every row is a different house.
+
+**(b)**
+
+```{r}
+ggpairs(bos, columns = 1:5)
+```
+
+```{r}
+ggpairs(bos, columns = c(1, 6:10))
+```
+
+```{r}
+ggpairs(bos, columns = c(1, 11:14))
+```
+
+Many relationships look random, but some like `medv` vs `Istat` and `crim` vs `age` have strong non-linear relationship.
+
+**(c)**
+
+`rad` and `tax` are both strongly correlated to `crim`. Not having access to radial highways might suggest a more rural property, while higher taxes are robbing people and pushing them towards crime.
+
+**(d)**
+
+*Crime rate*
+
+```{r}
+bos %>%
+  ggplot(aes(crim)) +
+  geom_histogram(bins = 10)
+```
+
+```{r}
+bos %>%
+  ggplot(aes(crim)) +
+  geom_boxplot()
+```
+
+Most crime rates close to 0, but also many outliers at 20 and 25%+
+
+*Tax rate*
+
+```{r}
+bos %>%
+  ggplot(aes(tax)) +
+  geom_histogram(bins = 20)
+```
+
+Normal cluster around 300 (from 200 - 440), then a few much further up above 600.
+
+*Pupil-teacher ratio*
+
+```{r}
+bos %>%
+  ggplot(aes(ptratio)) +
+  geom_histogram(bins = 15)
+```
+
+Skewed left normal curve around 19, from 15 to 21.5
+
+**(e)**
+
+```{r}
+bos %>% 
+  count(chas)
+```
+
+35 suburbs are river-bound, 471 are not.
+
+**(f)**
+
+```{r}
+median(bos$ptratio)
+```
+
+19.05
+
+**(g)**
+
+```{r}
+bos %>% 
+  arrange(medv) %>% 
+  slice(1)
+```
+
+This suburb has high crime, high taxes, and a high pupil-teacher ratio.
+
+**(h)**
+
+```{r}
+bos %>% 
+  filter(rm > 7) %>% 
+  nrow()
+```
+
+64 / 506, or 12.6%
+
+```{r}
+bos %>% 
+  filter(rm > 8) %>% 
+  nrow()
+```
+
+13 / 506, or 2.6%
+
+```{r}
+bos_roomy <- bos %>% 
+  filter(rm > 8)
+```
+
+```{r}
+bos_roomy %>% 
+  summarise_all(mean)
+```
+
+Very high crime, the highest in the datset.
+
+<br>
+
+## Chapter 3 Questions
+
+### (9)
+
+**(a)**
+
+```{r}
+auto <- ISLR::Auto
+auto_num <- auto %>% 
+  select(-name)
+```
+
+```{r}
+ggpairs(auto_num)
+```
+
+**(b)**
+
+```{r}
+auto_num %>% 
+  cor()
+```
+
+**(c)**
+
+```{r}
+fit <- lm(mpg ~ ., data = auto_num)
+
+summary(fit)
+```
+
+i. `mpg` relates very strongly to `origin`, `year`, `weight` and strongly to `displacement`.
+
+ii. The 4 mentioned in i.
+
+iii. This suggests that when holding all other predictors constant, an increase in year still leads to higher mpg. This suggests to me that there are other factors besides those covered in this dataset that are leading to cars with better mpg.
+
+**(d)**
+
+```{r}
+fit_tidy <- fit %>% 
+  broom::augment()
+```
+
+Looking at residuals vs predictor values to detect non-randomness in the residuals-- this would indicate the model is not fitting the data well.
+
+```{r}
+fit_tidy %>% 
+  pivot_longer(cols = displacement:year,
+               names_to = "var",
+               values_to = "value") %>%
+  ggplot(aes(value, .resid)) +
+  geom_point() +
+  geom_hline(yintercept = 0, linetype = "dashed", size = 1) +
+  facet_wrap(~ var, scales = "free")
+```
+
+Residuals look non-linear for both `weight` and `displacement`, while heteroskedasticity may be present for `horsepower` and `year`. 
+
+**(e)**
+
+```{r}
+fit_int <- lm(mpg ~ weight*cylinders + weight, data = auto_num)
+
+summary(fit_int)
+```
+
+In this simple model, the interaction of weight and cylinders is significant.
+
+**(f)**
+
+```{r}
+fit_log <- lm(mpg ~ cylinders + displacement + log(horsepower) + weight + acceleration + year, data = auto_num)
+
+summary(fit_log)
+
+fit_log_tidy <- fit_log %>% augment()
+```
+
+I fit log(horsepower) because the residuals for horsepower looked heteroskedastic.
+
+```{r}
+fit_log_tidy %>% 
+  pivot_longer(cols = mpg:year,
+               names_to = "var",
+               values_to = "value") %>%
+  ggplot(aes(value, .std.resid)) +
+  geom_point() +
+  geom_hline(yintercept = 0, linetype = "dashed", size = 1) +
+  facet_wrap(~ var, scales = "free")
+```
+
+Difficult to tell whether this helped. The residuals for horsepower might be slightly more random, less non-linear?
+
+### (13)
+
+**(a)**
+
+```{r}
+x <- rnorm(n = 100, mean = 0, sd = 1)
+```
+
+**(b)**
+
+```{r}
+eps <- rnorm(n = 100, mean = 0, sd = .25)
+```
+
+**(c)**
+
+```{r}
+y <- -1 + (.5 * x) + eps
+```
+
+`y` is length 100 (same as `x` and `eps`). In this model, $\hat{\beta_0} = -1$ and $\hat{\beta_1} = .5$
+
+**(d)**
+
+```{r}
+df <- cbind(x, eps, y) %>% 
+  as_tibble()
+```
+
+```{r}
+df %>%
+  ggplot(aes(x, y)) +
+  geom_point()
+```
+
+Can see there's a very strong linear relationship
+
+**(e)**
+
+```{r}
+fit_l <- lm(y ~ x, data = df)
+
+summary(fit_l)
+```
+
+$\hat{\beta_0} = -1.003$ (very close to $\beta_0 = -1$) and $\hat{\beta_1} = .485$ (very close to $\beta_1 = .5$)
+
+**(f)**
+
+```{r}
+df %>%
+  ggplot(aes(x, y)) +
+  geom_point() +
+  geom_smooth(method = "lm", se = F, alpha = .3, size = .7) +
+  stat_function(fun = function(x) -1 + (0.5 * x), alpha = .8)
+ # legend(x = 1, y = 1, legend = "", col = "blue")
+```
+
+Very similar lines, the population line in black/grey and the fit to this dataset in blue.
+
+**(g)**
+
+```{r}
+fit_q <- lm(y ~ x + I(x^2), data = df)
+
+summary(fit_q)
+```
+
+The quadratic term is not significant, and is not necessary. This makes sense after seeing the linear relationship visually.
+
+**(h)**
+
+```{r}
+eps_small <- rnorm(n = 100, mean = 0, sd = .025)
+```
+
+```{r}
+y_small <- -1 + (.5 * x) + eps_small
+```
+
+```{r}
+df_small <- cbind(x, eps_small, y_small) %>% 
+  as_tibble()
+```
+
+```{r}
+df_small %>%
+  ggplot(aes(x, y_small)) +
+  geom_point()
+```
+
+```{r}
+fit_small <- lm(y_small ~ x, data = df_small)
+
+summary(fit_small)
+```
+
+Extremely high $R^2$, almost perfect linear fit when the amount of noise is small.
+
+**(i)**
+
+```{r}
+eps_large <- rnorm(n = 100, mean = 0, sd = .75)
+```
+
+```{r}
+y_large <- -1 + (.5 * x) + eps_large
+```
+
+```{r}
+df_large <- cbind(x, eps_large, y_large) %>% 
+  as_tibble()
+```
+
+```{r}
+df_large %>%
+  ggplot(aes(x, y_large)) +
+  geom_point()
+```
+
+```{r}
+fit_large <- lm(y_large ~ x, data = df_large)
+
+summary(fit_large)
+```
+
+Lower $R^2$ when noise is greater.
+
+**(j)**
+
+Using Estimate +- 2 SE's from the `summary(fit)` outputs scattered above.
+
+*Original*
+
+$\beta_0: [-.98, -1.02]$
+$\beta_1: [.465, .505]$
+
+*Small E*
+
+$\beta_0: [-.999, 1.0001]$
+$\beta_1: [.4999, .5001]$
+
+*Large E*
+
+$\beta_0: [-.86, 1.00]$
+$\beta_1: [.47, .59]$
+
+<br>
+
+## Chapter 4 Questions
+
+### (6)
+
+**(a)**
+
+Plugging values of the beta hats into the logit equation (e^Bo+B1x) / (1 + e^Bo+B1x+..), we get P(student gets A) = .38
+
+**(b)**
+
+Setting the solved-for equation above equal to 0.5 (50% chance) and solving for hours to study x, you get 50 hours.
+
+### (9)
+
+**(a)**
+
+With our odds at .37, we can set that equal to $\frac{p(x)}{1-p(x)}$ and we end up with p(x) = .27. So there's a 27% chance of default.
+
+**(b)**
+
+Just divide .16 by (1 - .16) and we get .16 / .84 = .19
+
+
+
