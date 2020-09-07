@@ -1,0 +1,242 @@
+---
+title: Homework 2
+author: Daniel Dulaney
+date: September 6, 2020
+output: html_document
+editor_options: 
+  chunk_output_type: console
+---
+
+Note to self (and the grader): Procrastination is bad! This homework is only (very) partially completed :(
+
+```{r, message=FALSE}
+library(tidyverse)
+library(here)
+library(ISLR)
+library(skimr)
+library(tidymodels)
+library(discrim)
+```
+
+#4.7
+
+#4.10
+
+##(a)
+
+```{r}
+weekly <- ISLR::Weekly %>% 
+  as_tibble()
+
+skim(weekly)
+```
+
+```{r}
+# how much has the volume of shares traded changed over time?
+weekly %>% 
+  group_by(Year) %>% 
+  summarise(avg_volume = mean(Volume)) %>% 
+  ggplot(aes(Year, avg_volume)) +
+  geom_path(size = 2)
+```
+
+##(b)
+
+```{r}
+log_fit_full <- logistic_reg() %>% 
+  set_engine("glm") %>% 
+  fit(Direction ~ Volume + Lag1 + Lag2 + Lag3 + Lag4 + Lag5, data = weekly)
+
+summary(log_fit_full$fit)
+```
+
+`Lag2` is the only statistically significant predictor.
+
+##(c)
+
+```{r, include=FALSE}
+# log_fit_full %>% 
+#   augment()
+```
+
+```{r, include=FALSE}
+# conf_mat()
+```
+
+##(d)
+
+```{r}
+weekly_train <- weekly %>% 
+  filter(Year <= 2008)
+
+weekly_test <- weekly %>% 
+  filter(Year > 2008)
+```
+
+```{r}
+log_fit <- logistic_reg() %>% 
+  set_engine("glm") %>% 
+  fit(Direction ~ Volume + Lag1 + Lag2 + Lag3 + Lag4 + Lag5, data = weekly_train)
+
+predict(log_fit, weekly_test) %>% 
+  cbind(weekly_test) %>% 
+  conf_mat(truth = "Direction", estimate = ".pred_class")
+```
+
+##(e)
+
+```{r}
+lda_fit <- discrim_linear() %>% 
+  set_engine("MASS") %>% 
+  fit(Direction ~ Volume + Lag1 + Lag2 + Lag3 + Lag4 + Lag5, data = weekly_train)
+
+predict(lda_fit, weekly_test) %>% 
+  cbind(weekly_test) %>% 
+  conf_mat(truth = "Direction", estimate = ".pred_class")
+```
+
+##(f)
+
+```{r}
+# qda_fit <- discrim_regularized() %>% 
+#   set_engine("MASS") %>% 
+#   fit(Direction ~ Volume + Lag1 + Lag2 + Lag3 + Lag4 + Lag5, data = weekly_train)
+# 
+# predict(qda_fit, weekly_test) %>% 
+#   cbind(weekly_test) %>% 
+#   conf_mat(truth = "Direction", estimate = ".pred_class")
+```
+
+##(g)
+
+```{r}
+knn_fit <- nearest_neighbor() %>% 
+  set_engine("kknn") %>% 
+  set_mode("classification") %>% 
+  fit(Direction ~ Volume + Lag1 + Lag2 + Lag3 + Lag4 + Lag5, data = weekly_train)
+
+predict(knn_fit, weekly_test) %>% 
+  cbind(weekly_test) %>% 
+  conf_mat(truth = "Direction", estimate = ".pred_class")
+```
+
+##(h)
+
+Out of logistic regression, LDA, and KNN (couldn't get QDA running), the logistic and LDA models have the same confusion matrix and are both better than the KNN model.
+
+##(i)
+
+#5.5
+
+
+
+#5.8
+
+##(a)
+
+```{r}
+set.seed(1)
+
+x <- rnorm(100)
+y <- x - 2 * x + rnorm(100)
+
+df <- cbind(x, y) %>% 
+  as_tibble() %>% 
+  mutate(x2 = x^2,
+         x3 = x^3,
+         x4 = x^4)
+```
+
+n = 100 and p = 1
+
+
+
+##(b)
+
+```{r}
+df %>% 
+  ggplot(aes(x, y)) +
+  geom_point() +
+  geom_smooth(method = "lm")
+```
+
+Looks like a strong negative linear relationship between `x` and `y`.
+
+##(c)
+
+```{r}
+set.seed(20)
+
+loo_cv(df)
+
+mod_1 <- lm(y ~ x, data = df)
+mod_2 <- lm(y ~ x + x2, data = df)
+mod_3 <- lm(y ~ x + x2 + x3, data = df)
+mod_4 <- lm(y ~ x + x2 + x3 + x4, data = df)
+```
+
+##(d)
+
+##(e)
+
+##(f)
+
+#5.9
+
+##(a)
+
+```{r}
+boston <- MASS::Boston
+```
+
+```{r}
+mean_medv <- mean(boston$medv)
+
+mean_medv
+```
+
+$\hat{\mu}$ = 22.5
+
+##(b)
+
+```{r}
+sd_medv <- sd(boston$medv)
+
+# 95% confidence interval (mu +- 1.96(SE(mu)))
+lower <- mean_medv - (1.96 * (sd_medv / nrow(boston)))
+upper <- mean_medv + (1.96 * (sd_medv / nrow(boston)))
+
+lower
+upper
+```
+
+95% confidence interval for $\mu$: [22.50, 22.57], and the standard error is **.018.**
+
+##(c)
+
+```{r}
+boston_bootstraps <- bootstraps(boston, times = 100)
+
+medv_means <- boston_bootstraps$splits %>%
+  map_dbl(function(x) {
+    dat <- as.data.frame(x)$medv
+    mean(dat)
+  })
+
+quantile(medv_means, probs = c(.05, .95))
+```
+
+The 95% bootstrap confidence interval for $\mu$ is [21.85, 23.20]
+
+##(d)
+
+##(e)
+
+##(f)
+
+##(g)
+
+##(h)
+
+#6.10
+
