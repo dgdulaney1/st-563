@@ -1,0 +1,153 @@
+---
+title: Homework 3
+author: Daniel Dulaney
+date: September 18, 2020
+output: html_document
+editor_options: 
+  chunk_output_type: console
+---
+
+```{r}
+library(tidyverse)
+library(tidymodels)
+library(leaps)
+library(ISLR)
+```
+
+# Chapter 6
+
+##(8)
+
+###(a)
+
+```{r}
+x <- rnorm(100)
+e <- rnorm(100, mean = 0, sd = .01)
+```
+
+###(b)
+
+```{r}
+x2 <- x^2
+x3 <- x^3
+
+beta_0 <- 5
+beta_1 <- 8
+beta_2 <- 2
+beta_3 <- 10
+
+y <- beta_0 + (beta_1* x) + (beta_2 * x2) + (beta_3 * x3) + e
+
+# so y is related to x, x^2, and x^3 but not to the additional x^i's that'll be included in (c). should be that only these 3 x's are important variables moving forward
+```
+
+###(c)
+
+```{r}
+df <- cbind(x, x2, x3, e, y) %>% 
+  as.data.frame()
+```
+
+```{r}
+# function that takes in regsubsets() output, then plots metrics over various # variable values
+plot_subset_metrics <- function(model, method) {
+  
+  cp <- model$cp
+  bic <- model$bic
+  rsq <- model$rsq
+
+  metrics <- cbind(n_vars = 1:10, cp, bic, rsq) %>% 
+    as_tibble()
+
+  metrics %>% 
+    pivot_longer(cols = cp:rsq, names_to = "metric", values_to = "val") %>% 
+    ggplot(aes(n_vars, val)) +
+    geom_path() +
+    geom_point(size = 3) +
+    facet_wrap(~ metric, scales = "free") +
+    scale_x_continuous(breaks = 1:10) +
+    labs(title = str_c("Using", method, "selection", sep = " "))
+  
+} 
+```
+
+```{r}
+exhaustive_mod <- regsubsets(y ~ poly(x, 10, raw = TRUE), 
+                       data = df, 
+                       nvmax = 10,
+                       method = "exhaustive") %>% 
+  summary()
+
+plot_subset_metrics(exhaustive_mod, method = "exhaustive")
+```
+
+The best model appears to be the 3-variable one, as should be the case!
+
+###(d)
+
+```{r}
+forward_mod <- regsubsets(y ~ poly(x, 10, raw = TRUE),
+                          data = df, 
+                          nvmax = 10,
+                          method = "forward") %>% 
+  summary()
+
+plot_subset_metrics(forward_mod, method = "forward")
+```
+
+```{r}
+backward_mod <- regsubsets(y ~ poly(x, 10, raw = TRUE),
+                           data = df, 
+                           nvmax = 10,
+                           method = "backward") %>% 
+  summary()
+
+plot_subset_metrics(backward_mod, method = "backward")
+```
+
+Answer is the same. 3-variable model is best, as it should be!
+
+###(e)
+
+```{r}
+
+```
+
+
+###(f)
+
+```{r}
+
+```
+
+
+##(9)
+
+###(a)
+
+```{r}
+college_split <- initial_split(College)
+college_train <- training(college_split)
+college_test <- testing(college_split)
+```
+
+###(b)
+
+###(c)
+
+###(d)
+
+###(e)
+
+###(f)
+
+<br>
+
+# Chapter 7
+
+##(6)
+
+##(9)
+
+##(10)
+

@@ -18,8 +18,6 @@ library(tidymodels)
 library(discrim)
 ```
 
-#4.7
-
 #4.10
 
 ##(a)
@@ -41,6 +39,12 @@ weekly %>%
 ```
 
 ##(b)
+
+```{r}
+weekly_rec <- recipe(Direction ~ Volume + Lag1 + Lag2 + Lag3 + Lag4 + Lag5, data = weekly)
+
+weekly_wflow <- workflow()
+```
 
 ```{r}
 log_fit_full <- logistic_reg() %>% 
