@@ -12,6 +12,10 @@ library(tidyverse)
 library(tidymodels)
 library(leaps)
 library(ISLR)
+library(gam)
+library(MASS)
+
+knitr::opts_chunk$set(warning = FALSE)
 ```
 
 # Chapter 6
@@ -50,13 +54,13 @@ df <- cbind(x, x2, x3, e, y) %>%
 
 ```{r}
 # function that takes in regsubsets() output, then plots metrics over various # variable values
-plot_subset_metrics <- function(model, method) {
+plot_subset_metrics <- function(model, max_subset, method) {
   
   cp <- model$cp
   bic <- model$bic
   rsq <- model$rsq
 
-  metrics <- cbind(n_vars = 1:10, cp, bic, rsq) %>% 
+  metrics <- cbind(n_vars = 1:max_subset, cp, bic, rsq) %>% 
     as_tibble()
 
   metrics %>% 
@@ -65,20 +69,27 @@ plot_subset_metrics <- function(model, method) {
     geom_path() +
     geom_point(size = 3) +
     facet_wrap(~ metric, scales = "free") +
-    scale_x_continuous(breaks = 1:10) +
+    scale_x_continuous(breaks = 1:max_subset) +
     labs(title = str_c("Using", method, "selection", sep = " "))
   
 } 
 ```
 
 ```{r}
-exhaustive_mod <- regsubsets(y ~ poly(x, 10, raw = TRUE), 
-                       data = df, 
+df_x10 <- poly(df$x, 10, raw = TRUE) %>% 
+  as_tibble() %>% 
+  rename_with(function(num) str_c("x", num)) %>% 
+  cbind(y)
+```
+
+```{r}
+exhaustive_mod <- regsubsets(y ~ ., 
+                       data = df_x10, 
                        nvmax = 10,
                        method = "exhaustive") %>% 
   summary()
 
-plot_subset_metrics(exhaustive_mod, method = "exhaustive")
+plot_subset_metrics(exhaustive_mod, max_subset = 10, method = "exhaustive")
 ```
 
 The best model appears to be the 3-variable one, as should be the case!
@@ -86,23 +97,23 @@ The best model appears to be the 3-variable one, as should be the case!
 ###(d)
 
 ```{r}
-forward_mod <- regsubsets(y ~ poly(x, 10, raw = TRUE),
-                          data = df, 
+forward_mod <- regsubsets(y ~ .,
+                          data = df_x10, 
                           nvmax = 10,
                           method = "forward") %>% 
   summary()
 
-plot_subset_metrics(forward_mod, method = "forward")
+plot_subset_metrics(forward_mod, max_subset = 10, method = "forward")
 ```
 
 ```{r}
-backward_mod <- regsubsets(y ~ poly(x, 10, raw = TRUE),
-                           data = df, 
+backward_mod <- regsubsets(y ~ .,
+                           data = df_x10, 
                            nvmax = 10,
                            method = "backward") %>% 
   summary()
 
-plot_subset_metrics(backward_mod, method = "backward")
+plot_subset_metrics(backward_mod, max_subset = 10, method = "backward")
 ```
 
 Answer is the same. 3-variable model is best, as it should be!
@@ -110,36 +121,241 @@ Answer is the same. 3-variable model is best, as it should be!
 ###(e)
 
 ```{r}
+x10_rec <- recipe(y ~ ., data = df_x10) %>% 
+  step_normalize(all_numeric())
 
+wf <- workflow() %>% 
+  add_recipe(x10_rec)
 ```
 
+```{r}
+# initialize a LASSO model with penalty (lambda) to be tuned through cross-valiation
+tune_spec <- linear_reg(penalty = tune(), mixture = 1) %>% 
+  set_engine("glmnet")
+
+# create a grid of lambda values to test
+lambda_grid <- grid_regular(penalty(), levels = 50)
+
+lambda_grid
+```
+
+```{r}
+# create CV folds
+x10_folds <- vfold_cv(df_x10)
+```
+
+```{r}
+lasso_grid <- tune_grid(wf %>% add_model(tune_spec),
+                        resamples = x10_folds,
+                        grid = lambda_grid)
+
+# plot cross-validated RMSE over many values of lambda (log-scale to improve visibility)
+lasso_grid %>% 
+  collect_metrics() %>%
+  filter(.metric == "rmse") %>% 
+  ggplot(aes(log(penalty), mean)) +
+  geom_path() +
+  geom_point()
+
+# which penalty performed best?
+best_lambda <- lasso_grid %>% 
+  collect_metrics() %>% 
+  filter(.metric == "rmse") %>% 
+  arrange(mean) %>% 
+  slice(1) %>% 
+  pull(penalty)
+
+best_lambda
+```
+
+The smallest penalty in this tuning parameter grid ends up being the best choice of $\lambda$
+
+```{r}
+# fit final model w/ lambda ~ 0 and get coefficients
+final_mod <- linear_reg(penalty = best_lambda, mixture = 1) %>% 
+  set_engine("glmnet") %>% 
+  fit(y ~ ., data = df_x10)
+```
+
+```{r}
+final_mod %>% 
+  tidy()
+```
+
+Only the intercept and `x1` - `x3` coefficients are meaningfully above 0.
 
 ###(f)
 
 ```{r}
+beta_7 <- 2
 
+y_x7 <- beta_0 + (beta_7 * df_x10$x7) + e
+
+df_x10_y7 <- df_x10 %>% 
+  cbind(y_x7) %>% 
+  dplyr::select(-y)
 ```
 
+```{r}
+exhaustive_x7_mod <- regsubsets(y_x7 ~ ., 
+                     data = df_x10_y7, 
+                     nvmax = 10,
+                     method = "exhaustive") %>% 
+  summary()
+
+exhaustive_x7_mod
+plot_subset_metrics(exhaustive_x7_mod, max_subset = 10, method = "exhaustive")
+```
+
+Best subset selection clearly indicates 1-variable model is best, with `x7` being the variable included. This makes sense!
+
+```{r}
+# fit final model w/ lambda ~ 0 and get coefficients
+final_mod_y7 <- linear_reg(penalty = best_lambda, mixture = 1) %>% 
+  set_engine("glmnet") %>% 
+  fit(y_x7 ~ ., data = df_x10_y7)
+```
+
+```{r}
+final_mod_y7 %>% 
+  tidy()
+```
+
+Only significant variable is `x7`, as expected.
 
 ##(9)
 
 ###(a)
 
 ```{r}
-college_split <- initial_split(College)
+college <- College
+
+college_split <- initial_split(college)
 college_train <- training(college_split)
 college_test <- testing(college_split)
 ```
 
+```{r}
+college_rec <- recipe(Apps ~ ., data = college_train) %>% 
+  step_normalize(all_numeric())
+```
+
 ###(b)
+
+```{r}
+lm_fit <- lm(Apps ~ ., data = college_train)
+```
+
+```{r}
+lm_preds <- predict(lm_fit, college_test)
+
+mean((lm_preds - college_test$Apps)^2, na.rm = T)
+```
+
+Test RMSE = 1,010,467
 
 ###(c)
 
+```{r}
+# train_mat <- model.matrix(Apps ~ ., data = college_train %>% select_if(is.numeric))
+# test_mat <- model.matrix(Apps ~ ., data = college_test)
+# 
+# lambda_grid <- seq(0, 1, .01)
+# 
+# ridge_fit <- cv.glmnet(train_mat,
+#                        dplyr::select(college_train, Apps),
+#                        alpha = 0,
+#                        lambda = lambda_grid,
+#                        thresh = .000001)
+```
+
+```{r}
+# lambda_grid <- 10^seq(10, -2, length = 100)
+# 
+# ridge_fit <- glmnet(college_train %>% dplyr::select(-Apps) %>% as.matrix(), 
+#                     college_train$Apps %>% as.matrix(),
+#                     lambda = lambda_grid)
+```
+
+```{r}
+ridge_fit <- linear_reg(penalty = .1, mixture = 0) %>% 
+  set_engine("glmnet") %>% 
+  fit(Apps ~ ., data = college_train)
+
+ridge_preds <- predict(ridge_fit, college_test)
+
+mean((ridge_preds$.pred - college_test$Apps)^2, na.rm = T)
+```
+
+MSE is 1,017,567
+
 ###(d)
+
+```{r}
+# lasso_fit <- cv.glmnet(train_mat,
+#                        college_train %>% 
+#                          rownames_to_column() %>% 
+#                          dplyr::select(Apps),
+#                        alpha = 1,
+#                        lambda = lambda_grid,
+#                        threshold(.00001))
+```
+
+Running into unexpected error with `cv.glmnet()` in (c) and (d). Will not be cross-validating to choose the hyperparameters, will just fit at some defaults.
+
+```{r}
+lasso_fit <- linear_reg(penalty = .1, mixture = 1) %>% 
+  set_engine("glmnet") %>% 
+  fit(Apps ~ ., data = college_train)
+
+lasso_preds <- predict(lasso_fit, college_test)
+
+mean((lasso_preds$.pred - college_test$Apps)^2, na.rm = T)
+```
+
+MSE is 1,000,474
 
 ###(e)
 
+```{r}
+library(pls)
+```
+
+```{r}
+pcr_fit <- pcr(Apps ~ ., data = college_train, scale = TRUE, validation = "CV")
+
+summary(pcr_fit)
+
+validationplot(pcr_fit, val.type = "MSEP")
+
+pcr_preds <- predict(pcr_fit, college_test)
+
+mean((pcr_preds - college_test$Apps)^2)
+```
+
+Can see a high M (close to normal OLS) looks best.
+
+The MSE is 2,400,575
+
 ###(f)
+
+```{r}
+pls_fit <- plsr(Apps ~ ., data = college_train, scale = TRUE, validation = "CV")
+
+summary(pls_fit)
+
+validationplot(pls_fit)
+
+pls_preds <- predict(pls_fit, college_test)
+
+mean((pls_preds - college_test$Apps)^2)
+```
+
+The MSE is 1,175,241
+
+###(g)
+
+The best model according to MSE is the lasso in part (d).
 
 <br>
 
@@ -147,7 +363,353 @@ college_test <- testing(college_split)
 
 ##(6)
 
+###(a)
+
+```{r}
+wage <- ISLR::Wage
+
+# create CV folds
+wage_folds <- vfold_cv(wage)
+```
+
+```{r}
+# function that returns 10-fold CV'ed RMSE of wage ~ age model at a specific degree d
+cv_rsq_at_d <- function(deg) {
+  cv_rsq <- wage_folds$splits %>% 
+  # over each fold, calculate RMSE of wage ~ age model for that fold, using a specific poly(age, i) value
+  map_dbl(function(x) {
+    df <- x
+    fit <- lm(wage ~ poly(age, deg), data = df)
+    sum <- summary(fit)
+    sum$adj.r.squared
+  })
+
+  mean(cv_rsq)
+}
+
+df_deg <- tibble(deg = 1:10, 
+                 cv_rsq = c(cv_rsq_at_d(deg = 1),
+                          cv_rsq_at_d(deg = 2),
+                          cv_rsq_at_d(deg = 3),
+                          cv_rsq_at_d(deg = 4),
+                          cv_rsq_at_d(deg = 5),
+                          cv_rsq_at_d(deg = 6),
+                          cv_rsq_at_d(deg = 7),
+                          cv_rsq_at_d(deg = 8),
+                          cv_rsq_at_d(deg = 9),
+                          cv_rsq_at_d(deg = 10)))
+
+df_deg %>% 
+  ggplot(aes(deg, cv_rsq)) +
+  geom_path() +
+  geom_point() +
+  scale_x_continuous(breaks = 1:10)
+```
+
+Should choose d = 9 (at least out of the first 10 degrees) since it has the highest $R^2_a$ from this test.
+
+```{r}
+fit_d1 <- lm(wage ~ poly(age, 1), data = wage)
+fit_d2 <- lm(wage ~ poly(age, 2), data = wage)
+fit_d3 <- lm(wage ~ poly(age, 3), data = wage)
+fit_d9 <- lm(wage ~ poly(age, 9), data = wage)
+
+anova(fit_d1, fit_d2)
+anova(fit_d1, fit_d3)
+anova(fit_d3, fit_d9)
+```
+
+This seems to match what a few ANOVA's look like, at least in terms of requiring more than d = 1 and d = 9 being significant compared to smaller degrees like 3.
+
+Final fit plot:
+
+```{r}
+wage %>% 
+  ggplot(aes(age, wage)) +
+  geom_point() + 
+  stat_smooth(method = "lm", formula = y ~ poly(x, 9))
+```
+
+###(b)
+
+```{r}
+cv_rsq_at_ncuts <- function(ncuts) {
+  cv_rsq <- wage_folds$splits %>% 
+  # over each fold, calculate RMSE of wage ~ age model for that fold, using a specific poly(age, i) value
+  map_dbl(function(x) {
+    df <- x
+    fit <- lm(wage ~ cut(age, ncuts), data = df)
+    sum <- summary(fit)
+    sum$adj.r.squared
+  })
+
+  mean(cv_rsq)
+}
+
+cv_rsq_at_ncuts(ncuts = 2)
+cv_rsq_at_ncuts(ncuts = 3)
+cv_rsq_at_ncuts(ncuts = 4)
+cv_rsq_at_ncuts(ncuts = 5)
+cv_rsq_at_ncuts(ncuts = 6)
+cv_rsq_at_ncuts(ncuts = 7)
+cv_rsq_at_ncuts(ncuts = 8)
+cv_rsq_at_ncuts(ncuts = 9)
+cv_rsq_at_ncuts(ncuts = 10)
+
+df_ncuts <- tibble(ncuts = 2:10, 
+                 cv_rsq = c(cv_rsq_at_ncuts(ncuts = 2),
+                            cv_rsq_at_ncuts(ncuts = 3),
+                            cv_rsq_at_ncuts(ncuts = 4),
+                            cv_rsq_at_ncuts(ncuts = 5),
+                            cv_rsq_at_ncuts(ncuts = 6),
+                            cv_rsq_at_ncuts(ncuts = 7),
+                            cv_rsq_at_ncuts(ncuts = 8),
+                            cv_rsq_at_ncuts(ncuts = 9),
+                            cv_rsq_at_ncuts(ncuts = 10)))
+
+df_ncuts %>% 
+  ggplot(aes(ncuts, cv_rsq)) +
+  geom_path() +
+  geom_point() +
+  scale_x_continuous(breaks = 1:10)
+```
+
+Looks like 8 cuts has the best $R^2_a$
+
+Final fit plot:
+
+```{r}
+fit <- lm(wage ~ cut(age, 8), data = wage)
+
+preds <- predict(fit, wage)
+
+wage %>% 
+  mutate(pred_wage = preds) %>% 
+  ggplot() +
+  geom_point(aes(age, wage), color = "blue", alpha = .1) +
+  geom_point(aes(age, pred_wage), color = "red", size = 2)
+```
+
 ##(9)
 
+###(a)
+
+```{r}
+boston <- MASS::Boston
+
+fit_cub <- lm(nox ~ poly(dis, 3), data = boston)
+
+summary(fit_cub)
+
+boston %>% 
+  ggplot(aes(dis, nox)) +
+  geom_point() +
+  stat_smooth(method = "lm", formula = y ~ poly(x, 3))
+```
+
+Output and plot above-- all degrees significant, fit looks good.
+
+###(b)
+
+```{r}
+boston %>% 
+  ggplot(aes(dis, nox)) +
+  geom_point() +
+  stat_smooth(method = "lm", formula = y ~ poly(x, 1), se = F, alpha = .5) +
+  stat_smooth(method = "lm", formula = y ~ poly(x, 2), se = F, alpha = .5) +
+  stat_smooth(method = "lm", formula = y ~ poly(x, 3), se = F, alpha = .5) +
+  stat_smooth(method = "lm", formula = y ~ poly(x, 4), se = F, alpha = .5) +
+  stat_smooth(method = "lm", formula = y ~ poly(x, 5), se = F, alpha = .5) +
+  stat_smooth(method = "lm", formula = y ~ poly(x, 6), se = F, alpha = .5) +
+  stat_smooth(method = "lm", formula = y ~ poly(x, 7), se = F, alpha = .5) +
+  stat_smooth(method = "lm", formula = y ~ poly(x, 8), se = F, alpha = .5) +
+  stat_smooth(method = "lm", formula = y ~ poly(x, 9), se = F, alpha = .5) +
+  stat_smooth(method = "lm", formula = y ~ poly(x, 10), se = F)
+```
+
+Many with very similar, odd high-degree fits.
+
+```{r}
+rss <- c()
+
+for (i in 1:10) {
+  fit <- lm(nox ~ poly(dis, i), boston)
+  rss[i] <- sum(fit$residuals^2)
+}
+
+rss %>% 
+  as_tibble() %>% 
+  cbind(deg = 1:10) %>% 
+  ggplot(aes(deg, value)) +
+  geom_path() +
+  geom_point() +
+  scale_x_continuous(breaks = 1:10)
+```
+
+###(c)
+
+I'll used bootstrap datasets and test a degree on each one, deciding like that
+
+```{r}
+boston_folds <- vfold_cv(boston)
+
+# boston_folds %>% 
+#   map(function(df) {
+#     fit <- lm(nox ~ poly(dis, i), data = df)
+#   })
+```
+
+###(d)
+
+```{r}
+bs_fit <- lm(nox ~ bs(dis, knots = c(1.2, 2.2, 3.2)), data = boston)
+
+summary(bs_fit)
+```
+
+I chose the knots based an approximate 25th, 50th, and 75th percentiles of `dis`. Output shows mostly significant
+
+```{r}
+preds <- predict(bs_fit, boston)
+
+boston %>% 
+  cbind(pred_nox = preds) %>% 
+  ggplot() +
+  geom_point(aes(dis, nox), color = "blue") +
+  geom_point(aes(dis, pred_nox), color = "red", size = 1.5)
+```
+
+Fit looks very good!
+
+###(e)
+
+```{r, warning=FALSE}
+df_err <- c()
+
+for (i in 3:100) {
+  bs_fit <- lm(nox ~ bs(dis, df = i), data = boston)
+  
+  preds <- predict(bs_fit, boston)
+  
+  df_err[i] <- mean((preds - boston$nox)^2)
+}
+
+df_err %>% 
+  as_tibble() %>%
+  drop_na() %>% 
+  mutate(df = row_number() + 2) %>% 
+  ggplot(aes(df, value)) +
+  geom_path() +
+  geom_point(size = 1.5) +
+  labs(y = "MSE")
+```
+
+Consistently lower MSE as degrees of freedom increases.
+
+###(f)
+
+To choose the best df value, I will split up the `Boston` dataset into a training and test set, fit a model at each to the training set, and test on the testing set.
+
+```{r}
+boston_split <- initial_split(boston)
+boston_train <- training(boston_split)
+boston_test <- testing(boston_split)
+
+train_err <- c()
+test_err <- c()
+
+for (i in 3:100) {
+  bs_fit <- lm(nox ~ bs(dis, df = i), data = boston_train)
+  
+  preds_train <- predict(bs_fit, boston_train)
+  preds_test <- predict(bs_fit, boston_test)
+  
+  train_err[i] <- mean((preds_train - boston$nox)^2)
+  test_err[i] <- mean((preds_test - boston$nox)^2)
+}
+
+train_err
+test_err
+```
+
+Using this method, the degrees of freedom doesn't seem to affect MSE so much.
+
 ##(10)
+
+###(a)
+
+Using the same `college_split`, `college_train`, and `college_test` objects created earlier
+
+```{r}
+college <- College
+
+college_split <- initial_split(college)
+college_train <- training(college_split)
+college_test <- testing(college_split)
+```
+
+```{r}
+college_forward <- regsubsets(Outstate ~ .,
+                              data = college_train, 
+                              nvmax = 15,
+                              method = "forward") %>% 
+  summary()
+
+# using function defined earlier to plot metrics over various subsets so we can decide a proper model size
+plot_subset_metrics(model = college_forward,
+                    max_subset = 15,
+                    method = "forward")
+```
+
+The 12-variable model seems to be a good fit according to BIC and Mallow's Cp
+
+```{r}
+# selecting variables from the best 12-variable subset model
+cols_to_keep <- college_forward$outmat %>% 
+  as_tibble() %>%
+  dplyr::select(1:3, 5, 7, 9, 11, 13:17) %>% 
+  colnames()
+
+cols_to_keep[1] <- "Private"
+
+college_train_p12 <- college_train %>% 
+  dplyr::select(cols_to_keep, Outstate)
+
+college_test_p12 <- college_test %>% 
+  dplyr::select(cols_to_keep, Outstate)
+```
+
+###(b)
+
+```{r}
+gam_fit <- gam(Outstate ~ ., data = college_train_p12)
+
+# see a few basic metrics
+train_preds <- predict(gam_fit, college_train_p12)
+
+college_train_p12 %>% 
+  cbind(pred_Outstate = train_preds) %>% 
+  metrics(truth = Outstate, estimate = pred_Outstate)
+
+plot(gam_fit, se = TRUE)
+```
+
+A good training $R^2$ of .78
+
+###(c)
+
+```{r}
+test_preds <- predict(gam_fit, college_test_p12)
+
+college_test_p12 %>% 
+  cbind(pred_Outstate = test_preds) %>% 
+  metrics(truth = Outstate, estimate = pred_Outstate)
+```
+
+The model performs slightly worse, as expected, on the test data. Training RMSE and R^2 were 2168 and .75, while on training were 1867 and 77.
+
+###(d)
+
+The plots that go variable-by-variable when running `plot(gam_fit, se = TRUE)` are all linear, indicating a lack of non-linear relationship with the response.
+
 
