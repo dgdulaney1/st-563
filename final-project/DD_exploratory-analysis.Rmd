@@ -1,0 +1,61 @@
+---
+title: Exploratory Analysis of Red Wine Data
+author: Daniel Dulaney
+date: October 31, 2020 
+output: html_document
+editor_options: 
+  chunk_output_type: console
+---
+
+```{r, message=FALSE}
+library(tidyverse)
+library(here)
+library(skimr)
+```
+
+```{r}
+red_wine <- read_csv(here("final-project", "red_wine.csv")) %>% 
+  # add underscore to spaces in variable names
+  janitor::clean_names()
+```
+
+```{r}
+skim(red_wine)
+```
+
+```{r}
+red_wine %>% 
+  pivot_longer(cols = everything(), names_to = "property") %>% 
+  ggplot(aes(value, fill = property)) +
+  geom_histogram() +
+  facet_wrap(~property, scales = "free") +
+  ggeasy::easy_remove_legend()
+```
+
+```{r}
+# calculate correlations between properties and quality
+cors <- red_wine %>% 
+  cor() %>% 
+  as.data.frame() %>% 
+  rownames_to_column() %>% 
+  select(rowname, quality) %>% 
+  rename(cor_to_quality = quality,
+         property = rowname)
+
+# scatterplots, where facets are ordered from highest to lowest correlation with quality
+red_wine %>% 
+  pivot_longer(cols = fixed_acidity:alcohol, names_to = "property") %>% 
+  inner_join(cors, by = "property") %>%
+  mutate(property = fct_reorder(property, abs(cor_to_quality), .desc = TRUE)) %>% 
+  ggplot(aes(quality, value, color = property)) +
+  geom_point(alpha = .075) +
+  geom_smooth(method = "lm", se = FALSE) + 
+  facet_wrap(~property, scales = "free") +
+  ggeasy::easy_remove_legend()
+```
+
+This tell us that of the higher rated wines, `alcohol` had high values and `volatile_acidity` had low values.
+
+
+
+
