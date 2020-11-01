@@ -1,0 +1,241 @@
+---
+title: Homework 4
+author: Daniel Dulaney
+date: October 25, 2020
+output: pdf_document
+editor_options: 
+  chunk_output_type: console
+---
+
+```{r, message=FALSE}
+library(tidyverse)
+library(tidymodels)
+library(ISLR)
+library(tree)
+library(kableExtra)
+library(randomForest)
+```
+
+8.4 drawn by hand and attached above.
+
+##8.5
+
+```{r}
+probs <- c(0.1, 0.15, 0.2, 0.2, 0.55, 0.6, 0.6, 0.65, 0.7, 0.75)
+
+sum(probs > .5)
+sum(!(probs > .5))
+```
+
+Majority ultimately classifies red.
+
+```{r}
+mean(probs)
+```
+
+Average probabililty ultimately classifies green.
+
+##8.8
+
+###(a)
+
+```{r}
+carseats <- as_tibble(Carseats)
+
+split <- initial_split(carseats)
+
+carseats_train <- training(split)
+carseats_test <- testing(split)
+```
+
+###(b)
+
+```{r}
+tree_carsets <- tree(Sales ~ ., data = carseats_train)
+
+summary(tree_carsets)
+
+plot(tree_carsets)
+text(tree_carsets)
+```
+
+```{r}
+preds_carsets <- predict(tree_carsets, carseats_test)
+
+# calculate MSE
+mean((carseats_test$Sales - preds_carsets)^2)
+```
+
+MSE is 5.11
+
+###(c)
+
+```{r}
+cv_carseats <- cv.tree(tree_carsets, FUN = prune.tree)
+
+cv_metrics <- cbind(cv_carseats$dev, cv_carseats$size, cv_carseats$k) %>% 
+  as_tibble() %>% 
+  rename(dev = V1, size = V2, k = V3)
+
+# plot dev vs size
+cv_metrics %>% 
+  ggplot(aes(size, dev)) +
+  geom_path() +
+  geom_point() +
+  scale_x_continuous(breaks = seq(1, 16))
+
+cv_metrics %>% 
+  arrange(dev) %>% 
+  select(size, dev) %>% 
+  kable() %>% 
+  kable_styling()
+
+# plot dev vs k
+cv_metrics %>% 
+  ggplot(aes(k, dev)) +
+  geom_path() +
+  geom_point()
+```
+
+The best size appears to be 6.
+
+```{r}
+pruned_carseats <- prune.tree(tree_carsets, best = 6)
+
+plot(pruned_carseats)
+text(pruned_carseats)
+
+preds_pruned <- predict(pruned_carseats, carseats_test)
+mean((carseats_test$Sales - preds_pruned)^2)
+```
+
+MSE not improved by pruning, higher at 5.3 vs 5.1 before.
+
+###(d)
+
+```{r}
+bag_carseats <- randomForest(Sales ~ ., data = carseats_train, mtry = 10, ntree = 500, importance = T)
+preds_bag <- predict(bag_carseats, carseats_test)
+mean((carseats_test$Sales - preds_bag)^2)
+
+importance(bag_carseats)
+```
+
+Test MSE is 2.56, and the most important variables are listed above. 3 most important are `CompPrice`, `Income`, and `Advertising`.
+
+###(e)
+
+```{r}
+# everything the same as (d) but mtry = 5 now for RF instead of bagging
+rf_carseats <- randomForest(Sales ~ ., data = carseats_train, mtry = 5, ntree = 500, importance = T)
+preds_rf <- predict(rf_carseats, carseats_test)
+mean((carseats_test$Sales - preds_rf)^2)
+
+importance(rf_carseats)
+```
+
+MSE is slightly higher at 2.60, while the 3 most important variables remain the same. In this example, lowering m worsened test MSE.
+
+##8.9
+
+###(a)
+
+```{r}
+oj <- as_tibble(ISLR::OJ)
+
+oj_split <- initial_split(oj, prop = 800/nrow(oj))
+oj_train <- training(oj_split)
+oj_test <- testing(oj_split)
+```
+
+###(b)
+
+```{r}
+tree_oj <- tree(Purchase ~ ., data = oj_train)
+
+summary(tree_oj)
+```
+
+Training error rate is 18.1%, while the variables used in construction were `LoyalCH`, `PriceDiff`, `ListPriceDiff`, `PctDiscMM`, and `StoreID`. There are 9 terminal nodes.
+
+###(c)
+
+```{r}
+tree_oj
+```
+
+Looking at node 7), the last from the output above.
+
+The split variable is `LoyalCH`, and the split value is > .76. There are 246 points in this subsection of the tree. The * at the end indicates this is a terminal node. 
+
+The prediction at this point is `Purchase` = `CH`, which is the case for 96% of points in this node.
+
+###(d)
+
+```{r}
+plot(tree_oj)
+text(tree_oj)
+```
+
+Can see that `LoyalCH` is by far the most important variable in this tree model. The top nodes are all `LoyalCH` indicators.
+
+On the left of this graph, for instance, we see classification of `MM` for any `LoyalCH` < .06, or any `LoyalCH` between .06 and .27 if the `PriceDiff` > .05.
+
+###(e)
+
+```{r}
+preds_oj <- predict(tree_oj, oj_test, type = "class")
+table(oj_test$Purchase, preds_oj)
+```
+
+Test error rate is 21+8/270 = 10.7%
+
+###(f)
+
+```{r}
+cv_oj = cv.tree(tree_oj, FUN = prune.tree)
+
+cv_metrics <- cbind(cv_oj$dev, cv_oj$size, cv_oj$k) %>% 
+  as_tibble() %>% 
+  rename(dev = V1,
+         size = V2,
+         k = V3)
+```
+
+###(g)
+
+```{r}
+ggplot(aes(size, dev), data = cv_metrics) +
+  geom_path() +
+  geom_point() +
+  scale_x_continuous(breaks = 1:9)
+```
+
+###(h)
+
+Size 9, at `dev` = 729.
+
+###(i)
+
+```{r}
+oj_pruned <- prune.tree(tree_oj, best = 9)
+```
+
+###(j)
+
+```{r}
+summary(oj_pruned)
+```
+
+Error rate of 145/800 is exactly the same as the un-pruned model before.
+
+###(k)
+
+```{r}
+preds_oj_pruned <- predict(oj_pruned, oj_test, type = "class")
+table(oj_test$Purchase, preds_oj_pruned)
+```
+
+Same exact test error rate of 29/270.
+
+

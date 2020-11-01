@@ -1,0 +1,36 @@
+---
+title: Group Discussion 10
+author: Daniel Dulaney
+date: October 29, 2020 
+output: pdf_document
+---
+
+##10.11
+
+###(a)
+
+```{r}
+ch10num11 <- read.csv(here::here("group-discussion-10", "Ch10Ex11.csv"), header = FALSE)
+
+dplyr::glimpse(ch10num11)
+```
+
+###(b)
+
+```{r}
+dd <- as.dist(1 - cor(ch10num11))
+
+plot(hclust(dd, method = "complete"))
+plot(hclust(dd, method = "average"))
+plot(hclust(dd, method = "single"))
+```
+
+When using linkage types "complete" and "single", we see two groups clustered. When using type "average", there are three groups clustered.
+
+###(c)
+
+From reading the documentation of `hclust()`, it appears that the `height` output contains values that quantify which cluster a gene belongs in based on the method used. For instance, the output of the `method = "single"` shows the gene `V19` to have the largest height, while `V22` has the lowest. I believe this tells us these two genes are at the extreme ends of each cluster and are therefore very different.
+
+
+
+

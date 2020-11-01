@@ -1,0 +1,94 @@
+---
+title: Group Discussion
+author: Daniel Dulaney
+date: October 15, 2020
+output: pdf_document
+editor_options: 
+  chunk_output_type: console
+---
+
+```{r, message=FALSE}
+library(tidyverse)
+library(ISLR)
+library(tidymodels)
+library(gbm)
+```
+
+##(a)
+
+```{r}
+caravan <- Caravan %>% 
+  mutate(Purchase = ifelse(Purchase == "Yes", 1, 0))
+
+train <- caravan %>% 
+  slice(1:1000)
+
+test <- caravan %>% 
+  slice(1001:nrow(caravan))
+```
+
+##(b)
+
+```{r}
+boost_caravan <- gbm(Purchase ~ ., data = train, n.trees = 1000, shrinkage = .01, distribution = "bernoulli")
+```
+
+```{r}
+summary(boost_caravan)
+```
+
+The 5 most important variables, in order, are:
+
+1. `PPERSAUT`
+
+2. `MKOOPKLA`
+
+3. `MOPLHOOG`
+
+4. `MBERMIDD`
+
+5. `ABRAND`
+
+##(c)
+
+```{r}
+boost_probs <- predict(boost_caravan, test, n.trees = 1000, type = "response")
+```
+
+```{r}
+test <- test %>% 
+  mutate(prob_Purchase = boost_probs,
+         pred_Purchase = ifelse(prob_Purchase >= .20, 1, 0),
+         pred_Purchase = as.factor(pred_Purchase))
+
+table(test$Purchase, test$pred_Purchase)
+```
+
+```{r}
+33/(33+111)
+```
+
+About 23% of those predicted to make a purchase actually made the purchase
+
+```{r}
+logistic <- glm(Purchase ~ ., data = train, family = "binomial")
+```
+
+```{r}
+log_probs <- predict(logistic, test, type = "response")
+
+test <- test %>% 
+  mutate(prob_Purchase_log = log_probs,
+         pred_Purchase_log = ifelse(prob_Purchase_log >= .20, 1, 0),
+         pred_Purchase_log = as.factor(pred_Purchase_log))
+
+table(test$Purchase, test$pred_Purchase_log)
+
+58 / (58 + 350)
+```
+
+Compared to the boosted tree model, the logisitc regression is worse when predicting a purchase. 14% of those predicted to make a purchase actually did.
+
+
+
+

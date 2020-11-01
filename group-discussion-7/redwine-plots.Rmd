@@ -1,0 +1,36 @@
+---
+title: Group Discussion 7
+author: Daniel Dulaney
+date: October 8, 2020
+output: pdf_document
+editor_options: 
+  chunk_output_type: console
+---
+
+```{r, message=FALSE}
+library(tidyverse)
+library(here)
+library(ggeasy)
+```
+
+```{r, message=FALSE}
+red_wine <- read_csv(here("final-project", "red_wine.csv")) %>% 
+  janitor::clean_names()
+```
+
+```{r, message=FALSE}
+red_wine_long <- red_wine %>% 
+  pivot_longer(cols = fixed_acidity:quality,
+               names_to = "var",
+               values_to = "val")
+
+red_wine_long %>% 
+  ggplot(aes(val, fill = var)) +
+  geom_histogram() +
+  facet_wrap(~ var, scales = "free") +
+  ggeasy::easy_remove_legend()
+```
+
+
+
+

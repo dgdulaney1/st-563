@@ -1,0 +1,42 @@
+---
+title: Group Discussion 9
+author: Daniel Dulaney
+date: 10/13/2020
+output: pdf_document
+editor_options: 
+  chunk_output_type: console
+---
+
+```{r, message=FALSE}
+library(tidyverse)
+library(ggforce)
+```
+
+##(a)
+
+```{r}
+circ <- ggplot() +
+  geom_circle(aes(x0 = -1, y0 = 2, r = 2)) +
+  xlim(-5, 3) +
+  ylim(-1, 5)
+
+circ
+```
+
+##(b)
+
+```{r}
+circ +
+  geom_text(aes(x = -1, y = 2, label = "<4")) +
+  geom_text(aes(x = -4, y = 2, label = ">4"))
+```
+
+##(c)
+
+We can see from the plot above that (-1, 1) would be classified red (inside the circle) while the other three points would be classified blue (outside of the circle)
+
+##(d)
+
+By expanding the equation, we see that the boundary is simply a sum of 1st and 2nd order terms of `X1` and `X2`.
+
+
