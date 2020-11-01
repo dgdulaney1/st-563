@@ -2,7 +2,7 @@
 title: Exploratory Analysis of Red Wine Data
 author: Daniel Dulaney
 date: October 31, 2020 
-output: html_document
+output: github_document
 editor_options: 
   chunk_output_type: console
 ---
