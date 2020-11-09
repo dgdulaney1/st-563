@@ -1,0 +1,501 @@
+---
+title: Homework 5
+author: Daniel Dulaney
+date: November 7, 2020
+output: pdf_document
+editor_options: 
+  chunk_output_type: console
+---
+
+```{r}
+library(tidyverse)
+library(here)
+library(ggrepel)
+library(ISLR)
+library(e1071)
+```
+
+#(9.3)
+
+##(a)
+
+```{r}
+df_9.3 <- tribble(
+  ~obs, ~x1, ~x2, ~y,
+  1, 3, 4, "Red",
+  2, 2, 2, "Red",
+  3, 4, 4, "Red",
+  4, 1, 4, "Red",
+  5, 2, 1, "Blue",
+  6, 4, 3, "Blue",
+  7, 4, 1, "Blue"
+)
+
+points_9.3 <- df_9.3 %>% 
+  ggplot(aes(x1, x2, color = y)) +
+  geom_point(size = 6) +
+  geom_label_repel(aes(label = obs)) +
+  scale_color_manual(values = c("Blue", "Red"))
+
+points_9.3
+```
+
+##(b)
+
+Based on the plot, we know we can construct a line that will separate the classes perfectly.
+
+The maximal margin classifier will be a line between Blue points 5 (2, 1) and 6 (4, 3), and red points 2 (2, 2) and 3 (4, 4). The line will need to pass through the two points (4, 3.5) and (2, 1.5).
+
+The slope of the line equals $\frac{3.5-1.5}{4-2} = 1$ and the intercept equals 1.5-2 = -0.5
+
+```{r}
+points_9.3 +
+  geom_abline(intercept = -.5,
+              slope = 1,
+              size = 3)
+```
+
+##(c)
+
+0.5 - $X_1$ + $X_2$ > 0
+
+##(d)
+
+The line passing through Red points 2 and 3 has slope 1 and intercept -1, and the line passing through Blue points 5 and 6 has slope 1 and intercept 0
+
+```{r}
+points_9.3 +
+  geom_abline(intercept = -.5,
+              slope = 1,
+              size = 3) +
+  geom_abline(intercept = -1,
+              slope = 1,
+              size = 2,
+              linetype = "dashed") +
+  geom_abline(intercept = 0,
+              slope = 1,
+              size = 2,
+              linetype = "dashed")
+```
+
+##(e)
+
+```{r}
+points_9.3 +
+  geom_abline(intercept = -.5,
+              slope = 1,
+              size = 3) +
+  geom_segment(aes(x = 2,
+                   y = 2,
+                   xend = 2,
+                   yend = 1),
+               size = 3) +
+  geom_segment(aes(x = 4,
+                   y = 3,
+                   xend = 4,
+                   yend = 4),
+               size = 3)
+```
+
+##(f)
+
+Since observation 7 is outside of the margin, which is the area between the dotted lines, moving it wouldn't affect the maximal margin hyperplane.
+
+##(g)
+
+```{r}
+points_9.3 +
+  geom_abline(intercept = -1.1,
+              slope = 1,
+              size = 3)
+```
+
+$-1.1 - X_1 + X_2 > 0$
+
+##(h)
+
+```{r}
+df_9.3 %>% 
+  rbind(c(8, 5, 1, "Red")) %>% 
+  ggplot(aes(x1, x2, color = y)) +
+  geom_point(size = 6) +
+  geom_abline(intercept = -1.1,
+              slope = 1,
+              size = 3) +
+  geom_label_repel(aes(label = obs)) +
+  scale_color_manual(values = c("Blue", "Red"))
+```
+
+#(9.7)
+
+```{r}
+auto <- as_tibble(Auto)
+```
+
+##(a)
+
+```{r}
+mpg_median <- median(auto$mpg)
+
+auto <- auto %>% 
+  mutate(high_mileage = ifelse(mpg > mpg_median, 1, 0))
+```
+
+##(b)
+
+```{r}
+tune_linear <- tune(svm, high_mileage ~ ., data = auto, kernel = "linear", ranges = list(cost = c(.01, .1, 1, 5, 10, 100)))
+
+summary(tune_linear)
+```
+
+Errors for various costs in the table above. The lowest error was at cost = 1.
+
+##(c)
+
+```{r}
+tune_poly <- tune(svm, high_mileage ~ ., data = auto, kernel = "polynomial", ranges = list(cost = c(0.1, .5, 1, 3, 15), degree = c(2, 3, 4, 5)))
+
+summary(tune_poly)
+```
+
+Best cost for type polynomial is at cost = 15.
+
+```{r}
+tune_radial <- tune(svm, high_mileage ~ ., data = auto, kernel = "radial", ranges = list(cost = c(0.1, .5, 1, 3, 15), degree = c(2, 3, 4, 5)))
+
+summary(tune_radial)
+```
+
+Best cost for type radial is at cost = 15.
+
+##(d)
+
+```{r}
+svm_linear <- svm(high_mileage ~ ., data = auto, kernel = "linear", cost = 1)
+
+plot(svm_linear, auto, as.formula(mpg~cylinders))
+```
+
+This code follows what is in the book but it's not producing the plot here. Not sure what the issue is.
+
+#(10.2)
+
+Will use the `hclust()` function from an earlier chapter to create these trees.
+
+##(a)
+
+```{r}
+matrix_10.2 <- as.matrix(tribble(
+  ~a, ~b, ~c, ~d,
+  0, 0.3, 0.4, 0.7,
+  0.3, 0, 0.5, 0.8,
+  0.4, 0.5, 0, 0.45,
+  0.7, 0.8, 0.45, 0
+))
+
+dist_10.2 <- as.dist(matrix_10.2)
+
+plot(hclust(dist_10.2, method = "complete"))
+```
+
+##(b)
+
+```{r}
+plot(hclust(dist_10.2, method = "single"))
+```
+
+##(c)
+
+They are split into (a, b) and (c, d)
+
+##(d)
+
+They are split into (d) and (c, b, a)
+
+##(e)
+
+```{r}
+plot(hclust(dist_10.2, method = "complete"), 
+     labels = c("b", "a", "d", "c"))
+```
+
+#(10.3)
+
+##(a)
+
+```{r}
+df_10.3 <- tribble(
+  ~obs, ~x1, ~x2,
+  1, 1, 4,
+  2, 1, 3,
+  3, 0, 4,
+  4, 5, 1,
+  5, 6, 2,
+  6, 4, 0
+)
+
+df_10.3 %>% 
+  ggplot(aes(x1, x2)) +
+  geom_point()
+```
+
+##(b)
+
+```{r}
+df_10.3 <- df_10.3 %>% 
+  mutate(cluster = sample(2, 6, replace = TRUE))
+
+df_10.3
+```
+
+Clusters in last column.
+
+##(c)
+
+```{r}
+# calculate centroids
+clust1_x1 <- df_10.3 %>% 
+  filter(cluster == 1) %>% 
+  summarise(mean(x1)) %>% 
+  pull()
+
+clust1_x2 <- df_10.3 %>% 
+  filter(cluster == 1) %>% 
+  summarise(mean(x2)) %>% 
+  pull()
+
+clust2_x1 <- df_10.3 %>% 
+  filter(cluster == 2) %>% 
+  summarise(mean(x1)) %>% 
+  pull()
+
+clust2_x2 <- df_10.3 %>% 
+  filter(cluster == 2) %>% 
+  summarise(mean(x2)) %>% 
+  pull()
+```
+
+```{r}
+df_10.3 %>% 
+  ggplot() +
+  geom_point(aes(x1, x2, color = as.factor(cluster)),
+             data = df_10.3,
+             size = 5) +
+  geom_point(aes(x1, x2),
+             data = tribble(~x1, ~x2,
+                            clust1_x1, clust1_x2),
+             color = "red",
+             size = 5,
+             shape = "triangle") +
+  geom_point(aes(x1, x2),
+             data = tribble(~x1, ~x2,
+                            clust2_x1, clust2_x2),
+             color = "blue",
+             size = 5,
+             shape = "triangle") +
+  scale_color_manual(values = c("red", "blue"))
+```
+
+##(d)
+
+```{r}
+df_10.3 <- df_10.3 %>% 
+  mutate(center_clust1_x1 = clust1_x1,
+         center_clust1_x2 = clust1_x2,
+         center_clust2_x1 = clust2_x1,
+         center_clust2_x2 = clust2_x2,
+         dist_to_centerclust1 = sqrt((center_clust1_x1 - x1)^2 + (center_clust1_x2 - x2)^2),
+         dist_to_centerclust2 = sqrt((center_clust2_x1 - x1)^2 + (center_clust2_x2 - x2)^2),
+         new_cluster = ifelse(dist_to_centerclust1 < dist_to_centerclust2, 1, 2))
+
+df_10.3 
+```
+
+```{r}
+df_10.3 %>% 
+  ggplot() +
+  geom_point(aes(x1, x2, color = as.factor(new_cluster)),
+             data = df_10.3,
+             size = 5) +
+  geom_point(aes(x1, x2),
+             data = tribble(~x1, ~x2,
+                            clust1_x1, clust1_x2),
+             color = "red",
+             size = 5,
+             shape = "triangle") +
+  geom_point(aes(x1, x2),
+             data = tribble(~x1, ~x2,
+                            clust2_x1, clust2_x2),
+             color = "blue",
+             size = 5,
+             shape = "triangle") +
+  scale_color_manual(values = c("red", "blue"))
+```
+
+##(e)
+
+```{r}
+# calculate centroids
+clust1new_x1 <- df_10.3 %>% 
+  filter(new_cluster == 1) %>% 
+  summarise(mean(x1)) %>% 
+  pull()
+
+clust1new_x2 <- df_10.3 %>% 
+  filter(new_cluster == 1) %>% 
+  summarise(mean(x2)) %>% 
+  pull()
+
+clust2new_x1 <- df_10.3 %>% 
+  filter(new_cluster == 2) %>% 
+  summarise(mean(x1)) %>% 
+  pull()
+
+clust2new_x2 <- df_10.3 %>% 
+  filter(new_cluster == 1) %>% 
+  summarise(mean(x2)) %>% 
+  pull()
+```
+
+##(f)
+
+```{r}
+
+```
+
+#(10.9)
+
+##(a)
+
+```{r}
+usa_arrests <- as_tibble(USArrests %>% 
+                           rownames_to_column(var = "state"))
+```
+
+```{r}
+hc_complete <- hclust(dist(usa_arrests), method = "complete")
+
+plot(hc_complete)
+```
+
+##(b)
+
+```{r}
+usa_arrests <- usa_arrests %>% 
+  mutate(cluster = cutree(hc_complete, 3))
+
+# show each cluster individually
+usa_arrests %>% 
+  filter(cluster == 1)
+
+usa_arrests %>% 
+  filter(cluster == 2)
+
+usa_arrests %>% 
+  filter(cluster == 3)
+```
+
+##(c)
+
+```{r}
+usa_arrests_scaled <- scale(usa_arrests %>% 
+                              column_to_rownames("state") %>% 
+                              select(-cluster))
+
+hc_scaled <- hclust(dist(usa_arrests_scaled), method = "complete")
+
+plot(hc_scaled)
+```
+
+##(d)
+
+#(10.10)
+
+##(a)
+
+```{r}
+mat_10.10 <- matrix(nrow = 60, ncol = 50)
+
+for (i in 1:20) {
+  mat_10.10[i, ] <- c(rnorm(n = 50, mean = 0))
+}
+
+for (i in 21:40) {
+  mat_10.10[i, ] <- c(rnorm(n = 50, mean = 10))
+}
+
+for (i in 41:60) {
+  mat_10.10[i, ] <- c(rnorm(n = 50, mean = 20))
+}
+
+# df_10.10 <- as_tibble(mat_10.10) %>% 
+#   mutate(cluster = c(rep(1, 20), rep(2, 20), rep(3, 20)))
+# 
+# df_10.10
+```
+
+##(b)
+
+```{r}
+pca_out <- prcomp(mat_10.10)
+
+summary(pca_out)
+```
+
+##(c)
+
+```{r}
+km_out <- kmeans(mat_10.10, 3, nstart = 20)
+
+km_out$cluster
+```
+
+As in the dataset, points are clustered into different classes 20 by 20 by 20. They are perfectly learned here as I gave them a large mean separation.
+
+##(d)
+
+```{r}
+km_out2 <- kmeans(mat_10.10, 2, nstart = 20)
+
+km_out2$cluster
+```
+
+The second class which was previously "2" is now a part of class "1", while the other class (previously 3) is now all 2.
+
+##(e)
+
+```{r}
+km_out4 <- kmeans(mat_10.10, 4, nstart = 20)
+
+km_out4$cluster
+```
+
+The cluster which was originally 2, rows 21:40 from the data, is split into two different clusters now. The other two remain the same as original, perfectly separated into their own clusters.
+
+##(f)
+
+```{r}
+km_outpca <- kmeans(pca_out$x[, 1:2], 3, nstart = 20)
+
+km_outpca$cluster
+```
+
+Like we saw at the start, split perfectly into 3 clusters.
+
+##(g)
+
+```{r}
+mat_10.10_scaled <- scale(mat_10.10)
+
+km_outscaled <- kmeans(mat_10.10_scaled, 3, nstart = 20)
+
+km_outscaled$cluster
+```
+
+They are still perfectly separated.
+
+
+
+
+

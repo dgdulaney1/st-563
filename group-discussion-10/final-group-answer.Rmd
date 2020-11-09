@@ -1,0 +1,44 @@
+---
+title: Group Discussion 10 Final Answer
+date: November 1, 2020 
+output: pdf_document
+editor_options: 
+  chunk_output_type: console
+---
+
+##10.11
+
+###(a)
+
+```{r}
+ch10num11 <- read.csv(here::here("group-discussion-10", "Ch10Ex11.csv"), header = FALSE)
+
+dplyr::glimpse(ch10num11)
+```
+
+###(b)
+
+```{r}
+dd <- as.dist(1 - cor(ch10num11))
+
+plot(hclust(dd, method = "complete"))
+plot(hclust(dd, method = "average"))
+plot(hclust(dd, method = "single"))
+```
+
+When using linkage types "complete" and "single", we see two groups clustered. When using type "average", there are three groups clustered.
+
+###(c)
+
+We can use PCA. Then we can identify which genes have the largest effect by the principal component loadings (the rotation matrix of `prcomp` output).
+
+```{r}
+pr_out <- prcomp(t(ch10num11), scale = TRUE)
+genes_ranked <- order(abs(rowSums(pr_out$rotation)), decreasing = TRUE)
+genes_ranked[1:10]
+```
+
+
+
+
+
