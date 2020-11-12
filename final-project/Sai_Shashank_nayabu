@@ -1,0 +1,27 @@
+#linear regression
+linear_reg <- lm(quality ~ alcohol + volatile.acidity + free.sulfur.dioxide + sulphates + 
+                   + residual.sugar + citric.acid + pH + chlorides, data = red.train)
+summary(linear_reg)
+linear_pred <- data.frame(predict(linear_model, data=red.test)
+#linear regaression with statistically significant
+linear_reg2 <- lm(quality ~ volatile.acidity + chlorides + free.sulfur.dioxide + total.sulfur.dioxide + pH + sulphates + alcohol, data = red.train)
+summary(linear.reg2)
+#interactions
+linear_reg3<- lm(quality ~ volatile.acidity + chlorides + free.sulfur.dioxide + total.sulfur.dioxide + pH + sulphates + alcohol + total.sulfur.dioxide:sulphates + sulphates:alcohol , data = red.train)
+summary(linear_reg3)  
+interact_plot(linear_reg3, pred = "alcohol", modx = "sulphates")
+interact_plot(linear_reg3, pred = "total.sulfur.dioxide", modx = "sulphates")
+
+#logistic regression
+red.train$quality <- factor(data_train$quality)
+red.test$quality <- factor(data_test$quality)
+log_reg <- nnet::multinom(quality ~ alcohol + volatile.acidity + free.sulfur.dioxide + sulphates + 
+                           + residual.sugar + citric.acid + pH + chlorides, data = red.train )
+summary(log_reg)
+log_pred <- predict(log_reg, red.test, type="response")
+Concordance(red.test$quality, log_pred)
+#interactions
+log_reg2 <- glm(quality ~. + total.sulfur.dioxide:sulphates + sulphates:alcohol, family = binomial(link = 'logit'), data = red.train)
+summary(log_reg2)
+log_pred2 <- predict(log_reg2, red.test, type="response")
+Concordance(red.test$quality, log_pred2)
