@@ -109,7 +109,8 @@ varImpPlot(rf.red)
 ### Boosting
 
 In this section the Boosting regression tree method is used to analyze the data set. 
-The test MSE is 0.3874033
+After some probing with different values of shrinkage and interaction.depth,
+The test MSE is 0.3840237 if we use shrinkage=0.001, n.trees=4863, interaction.depth=5.
 The performance is not as good as RandomForest. 
 But from summary, the top 3 most important variables are the same as the result of random forest. 
 
@@ -118,9 +119,29 @@ library(gbm)
 ```
 
 ```{r}
+# trying to find good value of shrinkage, interaction.depth and n_trees.
+hyper_grid =expand.grid(
+  shrinkage = c(.001, .01, .1),
+  interaction.depth = c(3, 4, 5, 6),
+  optimal_trees = 0,
+  min_MSE = 0
+)
+nrow(hyper_grid)
+
+for(i in 1:nrow(hyper_grid)) {
 set.seed(1)
-boost.red=gbm(quality~.,data=red.train,distribution="gaussian", n.trees=5000, interaction.depth=4, shrinkage=0.001)
-boost.pred=predict(boost.red,newdata=red.test, n.trees=5000)
+tune=gbm(quality~.,data=red[train,],distribution="gaussian",n.trees=5000, interaction.depth=hyper_grid$interaction.depth[i], shrinkage=hyper_grid$shrinkage[i],cv.folds=5)
+hyper_grid$optimal_trees[i] = which.min(tune$cv.error)
+hyper_grid$min_MSE[i] = sqrt(min(tune$cv.error))
+}
+hyper_grid
+```
+
+
+```{r}
+set.seed(1)
+boost.red=gbm(quality~.,data=red.train,distribution="gaussian", n.trees=4863, interaction.depth=5, shrinkage=0.001)
+boost.pred=predict(boost.red,newdata=red.test, n.trees=4863)
 plot(boost.pred, red.test$quality)
 abline(0,1)
 mean((boost.pred-red.test$quality)^2)
