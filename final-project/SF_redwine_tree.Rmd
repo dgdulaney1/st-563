@@ -1,0 +1,251 @@
+---
+title: "Red Wine Data Analysis with Tree-Based Methods"
+author: "Shihwen Fu"
+date: "11/10/2020"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# Tree-based Methods
+
+In this document, we use tree methods to analyze the red wine data set.
+
+```{r}
+# Loading data
+red=read.csv("winequality-red.csv",sep=";")
+# split data into training and test data 
+set.seed(1)
+train = sample(dim(red)[1], dim(red)[1] / 2)
+red.train = red[train, ]
+red.test = red[-train, ]
+attach(red)
+```
+
+## Regression Trees
+
+In this section the regression tree method is used to analyze the red wine data set. 
+The output of summary() indicates that only 7 of the variables are used in constructing the tree. 
+cv.tree() function is used to see whether pruning will improve performance but it shows that the best result of 15 terminal nodes is already selected.
+The test MSE is 0.4998054 using a regression tree. 
+
+```{r red}
+library(tree)
+tree.red=tree(quality~.,red ,subset=train)
+summary(tree.red)
+plot(tree.red)
+text(tree.red, pretty=0)
+
+set.seed(2)
+cv.red=cv.tree(tree.red)
+plot(cv.red$size, cv.red$dev, type='b')
+cv.red
+
+tree.pred=predict(tree.red ,newdata=red[-train ,])
+plot(tree.pred, red.test$quality)
+abline(0,1)
+mean((tree.pred-red.test$quality)^2)
+```
+
+Here we try pruning to see if it improves the performance but it doesn't
+
+```{r}
+prune.red=prune.tree(tree.red ,best=12)
+prune.red.pred=predict(prune.red, red.test)
+mean((prune.red.pred-red.test$quality)^2)
+```
+
+```{r, echo=FALSE}
+# plot(prune.red)
+# text(prune.red ,pretty=0)
+```
+
+### Bagging 
+
+In this section the bagging regression tree method is used to analyze the data set. 
+We use argument mtry=11 with randomforest function in R.
+The test MSE is 0.363202.
+
+```{r, message = FALSE, warning = FALSE}
+library(randomForest)
+```
+
+```{r}
+set.seed(1)
+bag.red=randomForest(quality~.,data=red.train, mtr=11, importance=TRUE)
+bag.red
+bag.pred = predict(bag.red ,newdata=red.test)
+mean((bag.pred-red.test$quality)^2)
+```
+
+```{r, echo=FALSE}
+plot(bag.pred, red.test$quality)
+abline(0,1)
+#importance(bag.red)
+#varImpPlot(bag.red)
+```
+
+### Random Forest
+
+In this section the Random Forest regression tree method is used to analyze the data set. The argument mtry=4 is used which is the nearest value of p/3 where p=11. 
+The test MSE is 0.3590374. The performance is slightly better than Bagging, and much better than the regression tree. 
+And from importance(), it tells us the top 3 important variables are alcohol, sulphates and volatile.acidity.  
+
+```{r}
+set.seed(1)
+rf.red=randomForest(quality~.,data=red.train, mtr=4, importance=TRUE)
+rf.red
+rf.pred = predict(rf.red ,newdata=red.test)
+plot(rf.pred, red.test$quality)
+abline(0,1)
+mean((rf.pred-red.test$quality)^2)
+importance(rf.red)
+varImpPlot(rf.red)
+```
+
+
+### Boosting
+
+In this section the Boosting regression tree method is used to analyze the data set. 
+The test MSE is 0.4872913
+The performance is not as good as RandomForest. 
+But from summary, the top 3 most important variables are the same as the result of random forest. 
+
+```{r, message = FALSE, warning = FALSE}
+library(gbm)
+```
+
+```{r}
+set.seed(1)
+boost.red=gbm(quality~.,data=red[train,],distribution="gaussian",n.trees=5000, interaction.depth=4)
+boost.pred=predict(boost.red,newdata=red.test, n.trees=5000)
+plot(boost.pred, red.test$quality)
+abline(0,1)
+mean((boost.pred-red.test$quality)^2)
+
+summary(boost.red)
+plot(boost.red ,i="alcohol")
+plot(boost.red ,i="volatile.acidity")
+```
+
+## Classfication trees
+
+In this section classification trees method is used to analyze the red wine data set.
+We created a new binary variable HighQuality. 
+“1” stands for the quality score equal or higher than 6; “0” stands for the quality score is below 6, i.e. 0-5. 
+
+
+```{r}
+Highquality=ifelse(quality >=6,"1","0")
+newred =data.frame(red, Highquality)
+set.seed(1)
+ctree.red =tree(as.factor(Highquality)~.-quality, newred, subset=train)
+summary(ctree.red)
+
+ctree.pred=predict(ctree.red,newdata=newred[-train, ], n.trees=5000, type="class")
+table(ctree.pred, Highquality[-train])
+(273+292)/800
+
+```
+
+We see the training error rate is 23.78%. 
+And this approach leads to correct predictions for 70.625% for the test data set. 
+
+We plot the tree and we will see that “alcohol” is the most important indicator. 
+
+```{r, echo=FALSE}
+#ctree.red
+plot(ctree.red)
+text(ctree.red,pretty=0)
+```
+
+According to the cross-validation result using cv.tree(), the tree with 8 terminal nodes results in the lowest cross-validation error rate which is only 1 less than the results of 12 terminal nodes of the original tree. (255 vs 226)
+
+```{r}
+set.seed(3)
+cv.class.red =cv.tree(ctree.red ,FUN=prune.misclass )
+cv.class.red
+```
+
+```{r, echo = FALSE}
+par(mfrow=c(1,2))
+plot(cv.class.red$size ,cv.class.red$dev ,type="b")
+plot(cv.class.red$k ,cv.class.red$dev ,type="b")
+```
+
+We tried to prune the tree to 8 terminal nodes but the rate of correct prediction is the same as 12 terminal nodes:
+
+```{r}
+prune.class.red=prune.misclass(ctree.red,best=8)
+#plot(prune.class.red)
+#text(prune.class.red,pretty=0)
+prunectree.pred=predict(prune.class.red,newred[-train, ],type="class")
+table(prunectree.pred, Highquality[-train])
+(273+292)/800
+```
+
+### Bagging
+
+In this section the bagging classification tree method is used to analyze the data set. 
+We use argument mtry=11 with randomforest function in R.
+The correct prediction is 0.78375
+
+```{r}
+library(randomForest)
+set.seed(3)
+bag.class.red=randomForest(as.factor(Highquality)~.-quality, newred, subset=train,mtr=11, importance=TRUE)
+bag.class.red
+bag.class.pred = predict(bag.class.red, newred[-train, ], type="class")
+table(bag.class.pred, Highquality[-train])
+(307+320)/800
+```
+
+### Random Forest
+
+In this section the Random Forest classification tree method is used to analyze the data set. 
+We use argument mtry=4 with randomforest function in R.
+The correct prediction is 0.795
+
+```{r}
+set.seed(3)
+rf.class.red=randomForest(as.factor(Highquality)~.-quality, newred, subset=train, importance=TRUE)
+rf.class.red
+rf.class.pred = predict(rf.class.red, newred[-train, ], type="class")
+table(rf.class.pred, Highquality[-train])
+(312+316)/800
+
+set.seed(3)
+rf.class.red=randomForest(as.factor(Highquality)~.-quality, newred, subset=train,mtr=4, importance=TRUE)
+rf.class.red
+rf.class.pred = predict(rf.class.red, newred[-train, ], type="class")
+table(rf.class.pred, Highquality[-train])
+(311+325)/800
+
+importance(rf.class.red)
+varImpPlot(rf.class.red)
+```
+
+### Boosting
+
+In this section the Boosting classification tree method is used to analyze the data set. 
+The correct prediction is 0.765
+
+```{r}
+library(gbm)
+set.seed(3)
+boost.class.red=gbm(Highquality~.-quality,data=newred[train,],distribution="bernoulli",n.trees=5000, interaction.depth=4)
+summary(boost.class.red)
+pred.boost=predict(boost.class.red,newdata=newred[-train, ], n.trees=5000, type="response")
+boost.class.pred <- pred.boost > 0.5
+table(boost.class.pred, Highquality[-train])
+(288+324)/800
+```
+
+
+## Summary
+The performance of random forest is the best among the tree methods for both regression and classification.
+
+- The Test MSE for regression is 0.3590374
+- The correct prediction rate for classification is 79.50%
