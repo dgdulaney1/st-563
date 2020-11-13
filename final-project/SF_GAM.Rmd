@@ -1,0 +1,72 @@
+---
+title: "GAM on red wine data"
+author: "Shihwen Fu"
+date: "11/12/2020"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+# Loading data
+red=read.csv("red_wine.csv",sep=",")
+head(red)
+dim(red)
+# split data into training and test data 
+set.seed(1)
+train = sample(dim(red)[1], dim(red)[1] / 2)
+red.train = red[train, ]
+red.test = red[-train, ]
+attach(red)
+```
+
+## GAM for regression
+Here we use GAM to apply non-linear functions of alcohol, sulphates, and volatile.acidity (The 3 most important variables indicated by subset selection and tree-based methods). One possible best testMSE is 0.4084063 with 5 degrees of freedom for sulphates, 4 degrees of freedom for volatile.acidity and linear function of year. The nice thing about GAM is we can examine the effect of alcohol, sulphates, and volatile.acidity on quality individually while holding all of the other variables fixed. Following figure gives us useful representation for inference.
+
+```{r}
+library(splines)
+library(gam)
+hyper_grid =expand.grid(
+  alcohol.degree = c(1,2,3,4,5),
+  sulphates.degree = c(1,2,3,4,5),
+  volatile.acidity.degree = c(1,2,3,4,5),
+  testMSE = 0
+)
+#nrow(hyper_grid)
+
+for(i in 1:nrow(hyper_grid)) {
+  set.seed(1)
+  gam.m3=gam(quality~s(alcohol ,hyper_grid$alcohol.degree[i])+s(sulphates ,hyper_grid$sulphates.degree[i])+s(volatile.acidity ,hyper_grid$volatile.acidity.degree[i]) ,
+             data=red.train)
+  preds=predict(gam.m3,newdata=red.test)
+  testMSE=mean((preds-red.test$quality)^2)
+  hyper_grid$testMSE[i] = testMSE
+}
+#hyper_grid
+which.min(hyper_grid[,4])
+gam.m3=gam(quality~alcohol+s(sulphates ,5)+s(volatile.acidity ,4) ,data=red.train)
+
+preds=predict(gam.m3,newdata=red.test)
+mean((preds-red.test$quality)^2)
+```
+
+
+```{r, echo=FALSE}
+par(mfrow=c(1,3))
+plot(gam.m3, se=TRUE,col="blue")
+```
+
+## GAM for classification
+Here we apply GAM again for classification with same parameters, we get the prediction accuracy as 72.875%.  
+```{r}
+
+Highquality=ifelse(quality >=6,1,0)
+newred =data.frame(red, Highquality)
+
+gam.lr=gam(Highquality~alcohol+s(sulphates ,5)+s(volatile.acidity ,4), family=binomial,data=newred[-train,])
+par(mfrow=c(1,3))
+plot(gam.lr,se=T,col="green")
+
+gam.class.pred=predict(gam.lr, newdata=newred[-train,], type='response')
+final_pred = gam.class.pred > 0.5
+table(final_pred, Highquality[-train])
+(268+315)/800
+```
