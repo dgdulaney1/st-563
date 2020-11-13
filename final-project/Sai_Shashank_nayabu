@@ -1,27 +1,43 @@
-#linear regression
-linear_reg <- lm(quality ~ alcohol + volatile.acidity + free.sulfur.dioxide + sulphates + 
-                   + residual.sugar + citric.acid + pH + chlorides, data = red.train)
-summary(linear_reg)
-linear_pred <- data.frame(predict(linear_model, data=red.test)
-#linear regaression with statistically significant
-linear_reg2 <- lm(quality ~ volatile.acidity + chlorides + free.sulfur.dioxide + total.sulfur.dioxide + pH + sulphates + alcohol, data = red.train)
-summary(linear.reg2)
-#interactions
-linear_reg3<- lm(quality ~ volatile.acidity + chlorides + free.sulfur.dioxide + total.sulfur.dioxide + pH + sulphates + alcohol + total.sulfur.dioxide:sulphates + sulphates:alcohol , data = red.train)
-summary(linear_reg3)  
-interact_plot(linear_reg3, pred = "alcohol", modx = "sulphates")
-interact_plot(linear_reg3, pred = "total.sulfur.dioxide", modx = "sulphates")
+red <- read.csv("/Users/saishashanknayabu/Downloads/st-563-master/final-project/red_wine.csv")
+# split data into training and test data 
+set.seed(1)
+train <- sample(dim(red)[1], dim(red)[1]/2)
+red.train <- red[train,]
+red.test <- red[-train,]
+write.csv(red.train, "red_wine_train.csv", quote=FALSE)
+write.csv(red.test, "red_wine_test.csv", quote=FALSE)
 
-#logistic regression
-red.train$quality <- factor(data_train$quality)
-red.test$quality <- factor(data_test$quality)
-log_reg <- nnet::multinom(quality ~ alcohol + volatile.acidity + free.sulfur.dioxide + sulphates + 
-                           + residual.sugar + citric.acid + pH + chlorides, data = red.train )
-summary(log_reg)
-log_pred <- predict(log_reg, red.test, type="response")
-Concordance(red.test$quality, log_pred)
+library('caret')
+library('e1071')
+
+#linear regression
+linear_reg <- lm(quality ~., data = red.train)
+summary(linear_reg)
+mean((red$quality-predict(linear_reg, red))[-train]^2)
+
+#linear regaression with statistically significant
+linear_reg2 <- lm(quality ~ volatile.acidity + total.sulfur.dioxide + sulphates + alcohol, data = red.train)
+summary(linear_reg2)
+mean((red$quality-predict(linear_reg2, red))[-train]^2)
+
 #interactions
-log_reg2 <- glm(quality ~. + total.sulfur.dioxide:sulphates + sulphates:alcohol, family = binomial(link = 'logit'), data = red.train)
-summary(log_reg2)
-log_pred2 <- predict(log_reg2, red.test, type="response")
-Concordance(red.test$quality, log_pred2)
+linear_reg3<- lm(quality ~ volatile.acidity + chlorides + free.sulfur.dioxide + total.sulfur.dioxide + pH + sulphates + alcohol + volatile.acidity: total.sulfur.dioxide + sulphates:alcohol , data = red.train)
+summary(linear_reg3) 
+mean((red$quality-predict(linear_reg3, red))[-train]^2)
+
+# logistic regression
+library('e1071')
+red$quality <- as.factor(as.integer(red$quality > 5))
+red.train <- red[train,]
+red.test <- red[-train,]
+log_model = glm(formula = quality ~ .,
+                data = red.train,
+                family = binomial)
+#Predictions
+pred = predict(log_model, 
+               type = 'response', 
+               newdata = red.test[-12])
+glm.pred=rep(0,length(red.test$quality))
+glm.pred[pred >.5]=1
+table(red.test$quality, glm.pred)
+mean(glm.pred!=red.test$quality)
