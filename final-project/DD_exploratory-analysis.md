@@ -7,11 +7,13 @@ October 31, 2020
 library(tidyverse)
 library(here)
 library(skimr)
+library(ggcorrplot)
+library(kableExtra)
 ```
 
 ``` r
 red_wine <- read_csv(here("final-project", "red_wine.csv")) %>% 
-  # add underscore to spaces in variable names
+  # replace spaces in variable names with underscores
   janitor::clean_names()
 ```
 
@@ -35,47 +37,653 @@ red_wine <- read_csv(here("final-project", "red_wine.csv")) %>%
 skim(red_wine)
 ```
 
-|                                                  |           |
-|:-------------------------------------------------|:----------|
-| Name                                             | red\_wine |
-| Number of rows                                   | 1599      |
-| Number of columns                                | 12        |
-| \_\_\_\_\_\_\_\_\_\_\_\_\_\_\_\_\_\_\_\_\_\_\_   |           |
-| Column type frequency:                           |           |
-| numeric                                          | 12        |
-| \_\_\_\_\_\_\_\_\_\_\_\_\_\_\_\_\_\_\_\_\_\_\_\_ |           |
-| Group variables                                  | None      |
-
+<table style="width: auto;" class="table table-condensed">
+<caption>
+Data summary
+</caption>
+<thead>
+<tr>
+<th style="text-align:left;">
+</th>
+<th style="text-align:left;">
+</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align:left;">
+Name
+</td>
+<td style="text-align:left;">
+red\_wine
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+Number of rows
+</td>
+<td style="text-align:left;">
+1599
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+Number of columns
+</td>
+<td style="text-align:left;">
+12
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+\_\_\_\_\_\_\_\_\_\_\_\_\_\_\_\_\_\_\_\_\_\_\_
+</td>
+<td style="text-align:left;">
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+Column type frequency:
+</td>
+<td style="text-align:left;">
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+numeric
+</td>
+<td style="text-align:left;">
+12
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+\_\_\_\_\_\_\_\_\_\_\_\_\_\_\_\_\_\_\_\_\_\_\_\_
+</td>
+<td style="text-align:left;">
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+Group variables
+</td>
+<td style="text-align:left;">
+None
+</td>
+</tr>
+</tbody>
+</table>
 **Variable type: numeric**
 
-| skim\_variable         |  n\_missing|  complete\_rate|   mean|     sd|    p0|    p25|    p50|    p75|    p100| hist  |
-|:-----------------------|-----------:|---------------:|------:|------:|-----:|------:|------:|------:|-------:|:------|
-| fixed\_acidity         |           0|               1|   8.32|   1.74|  4.60|   7.10|   7.90|   9.20|   15.90| ▂▇▂▁▁ |
-| volatile\_acidity      |           0|               1|   0.53|   0.18|  0.12|   0.39|   0.52|   0.64|    1.58| ▅▇▂▁▁ |
-| citric\_acid           |           0|               1|   0.27|   0.19|  0.00|   0.09|   0.26|   0.42|    1.00| ▇▆▅▁▁ |
-| residual\_sugar        |           0|               1|   2.54|   1.41|  0.90|   1.90|   2.20|   2.60|   15.50| ▇▁▁▁▁ |
-| chlorides              |           0|               1|   0.09|   0.05|  0.01|   0.07|   0.08|   0.09|    0.61| ▇▁▁▁▁ |
-| free\_sulfur\_dioxide  |           0|               1|  15.87|  10.46|  1.00|   7.00|  14.00|  21.00|   72.00| ▇▅▁▁▁ |
-| total\_sulfur\_dioxide |           0|               1|  46.47|  32.90|  6.00|  22.00|  38.00|  62.00|  289.00| ▇▂▁▁▁ |
-| density                |           0|               1|   1.00|   0.00|  0.99|   1.00|   1.00|   1.00|    1.00| ▁▃▇▂▁ |
-| p\_h                   |           0|               1|   3.31|   0.15|  2.74|   3.21|   3.31|   3.40|    4.01| ▁▅▇▂▁ |
-| sulphates              |           0|               1|   0.66|   0.17|  0.33|   0.55|   0.62|   0.73|    2.00| ▇▅▁▁▁ |
-| alcohol                |           0|               1|  10.42|   1.07|  8.40|   9.50|  10.20|  11.10|   14.90| ▇▇▃▁▁ |
-| quality                |           0|               1|   5.64|   0.81|  3.00|   5.00|   6.00|   6.00|    8.00| ▁▇▇▂▁ |
-
+<table>
+<thead>
+<tr>
+<th style="text-align:left;">
+skim\_variable
+</th>
+<th style="text-align:right;">
+n\_missing
+</th>
+<th style="text-align:right;">
+complete\_rate
+</th>
+<th style="text-align:right;">
+mean
+</th>
+<th style="text-align:right;">
+sd
+</th>
+<th style="text-align:right;">
+p0
+</th>
+<th style="text-align:right;">
+p25
+</th>
+<th style="text-align:right;">
+p50
+</th>
+<th style="text-align:right;">
+p75
+</th>
+<th style="text-align:right;">
+p100
+</th>
+<th style="text-align:left;">
+hist
+</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align:left;">
+fixed\_acidity
+</td>
+<td style="text-align:right;">
+0
+</td>
+<td style="text-align:right;">
+1
+</td>
+<td style="text-align:right;">
+8.32
+</td>
+<td style="text-align:right;">
+1.74
+</td>
+<td style="text-align:right;">
+4.60
+</td>
+<td style="text-align:right;">
+7.10
+</td>
+<td style="text-align:right;">
+7.90
+</td>
+<td style="text-align:right;">
+9.20
+</td>
+<td style="text-align:right;">
+15.90
+</td>
+<td style="text-align:left;">
+&lt;U+2582&gt;&lt;U+2587&gt;&lt;U+2582&gt;&lt;U+2581&gt;&lt;U+2581&gt;
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+volatile\_acidity
+</td>
+<td style="text-align:right;">
+0
+</td>
+<td style="text-align:right;">
+1
+</td>
+<td style="text-align:right;">
+0.53
+</td>
+<td style="text-align:right;">
+0.18
+</td>
+<td style="text-align:right;">
+0.12
+</td>
+<td style="text-align:right;">
+0.39
+</td>
+<td style="text-align:right;">
+0.52
+</td>
+<td style="text-align:right;">
+0.64
+</td>
+<td style="text-align:right;">
+1.58
+</td>
+<td style="text-align:left;">
+&lt;U+2585&gt;&lt;U+2587&gt;&lt;U+2582&gt;&lt;U+2581&gt;&lt;U+2581&gt;
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+citric\_acid
+</td>
+<td style="text-align:right;">
+0
+</td>
+<td style="text-align:right;">
+1
+</td>
+<td style="text-align:right;">
+0.27
+</td>
+<td style="text-align:right;">
+0.19
+</td>
+<td style="text-align:right;">
+0.00
+</td>
+<td style="text-align:right;">
+0.09
+</td>
+<td style="text-align:right;">
+0.26
+</td>
+<td style="text-align:right;">
+0.42
+</td>
+<td style="text-align:right;">
+1.00
+</td>
+<td style="text-align:left;">
+&lt;U+2587&gt;&lt;U+2586&gt;&lt;U+2585&gt;&lt;U+2581&gt;&lt;U+2581&gt;
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+residual\_sugar
+</td>
+<td style="text-align:right;">
+0
+</td>
+<td style="text-align:right;">
+1
+</td>
+<td style="text-align:right;">
+2.54
+</td>
+<td style="text-align:right;">
+1.41
+</td>
+<td style="text-align:right;">
+0.90
+</td>
+<td style="text-align:right;">
+1.90
+</td>
+<td style="text-align:right;">
+2.20
+</td>
+<td style="text-align:right;">
+2.60
+</td>
+<td style="text-align:right;">
+15.50
+</td>
+<td style="text-align:left;">
+&lt;U+2587&gt;&lt;U+2581&gt;&lt;U+2581&gt;&lt;U+2581&gt;&lt;U+2581&gt;
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+chlorides
+</td>
+<td style="text-align:right;">
+0
+</td>
+<td style="text-align:right;">
+1
+</td>
+<td style="text-align:right;">
+0.09
+</td>
+<td style="text-align:right;">
+0.05
+</td>
+<td style="text-align:right;">
+0.01
+</td>
+<td style="text-align:right;">
+0.07
+</td>
+<td style="text-align:right;">
+0.08
+</td>
+<td style="text-align:right;">
+0.09
+</td>
+<td style="text-align:right;">
+0.61
+</td>
+<td style="text-align:left;">
+&lt;U+2587&gt;&lt;U+2581&gt;&lt;U+2581&gt;&lt;U+2581&gt;&lt;U+2581&gt;
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+free\_sulfur\_dioxide
+</td>
+<td style="text-align:right;">
+0
+</td>
+<td style="text-align:right;">
+1
+</td>
+<td style="text-align:right;">
+15.87
+</td>
+<td style="text-align:right;">
+10.46
+</td>
+<td style="text-align:right;">
+1.00
+</td>
+<td style="text-align:right;">
+7.00
+</td>
+<td style="text-align:right;">
+14.00
+</td>
+<td style="text-align:right;">
+21.00
+</td>
+<td style="text-align:right;">
+72.00
+</td>
+<td style="text-align:left;">
+&lt;U+2587&gt;&lt;U+2585&gt;&lt;U+2581&gt;&lt;U+2581&gt;&lt;U+2581&gt;
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+total\_sulfur\_dioxide
+</td>
+<td style="text-align:right;">
+0
+</td>
+<td style="text-align:right;">
+1
+</td>
+<td style="text-align:right;">
+46.47
+</td>
+<td style="text-align:right;">
+32.90
+</td>
+<td style="text-align:right;">
+6.00
+</td>
+<td style="text-align:right;">
+22.00
+</td>
+<td style="text-align:right;">
+38.00
+</td>
+<td style="text-align:right;">
+62.00
+</td>
+<td style="text-align:right;">
+289.00
+</td>
+<td style="text-align:left;">
+&lt;U+2587&gt;&lt;U+2582&gt;&lt;U+2581&gt;&lt;U+2581&gt;&lt;U+2581&gt;
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+density
+</td>
+<td style="text-align:right;">
+0
+</td>
+<td style="text-align:right;">
+1
+</td>
+<td style="text-align:right;">
+1.00
+</td>
+<td style="text-align:right;">
+0.00
+</td>
+<td style="text-align:right;">
+0.99
+</td>
+<td style="text-align:right;">
+1.00
+</td>
+<td style="text-align:right;">
+1.00
+</td>
+<td style="text-align:right;">
+1.00
+</td>
+<td style="text-align:right;">
+1.00
+</td>
+<td style="text-align:left;">
+&lt;U+2581&gt;&lt;U+2583&gt;&lt;U+2587&gt;&lt;U+2582&gt;&lt;U+2581&gt;
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+p\_h
+</td>
+<td style="text-align:right;">
+0
+</td>
+<td style="text-align:right;">
+1
+</td>
+<td style="text-align:right;">
+3.31
+</td>
+<td style="text-align:right;">
+0.15
+</td>
+<td style="text-align:right;">
+2.74
+</td>
+<td style="text-align:right;">
+3.21
+</td>
+<td style="text-align:right;">
+3.31
+</td>
+<td style="text-align:right;">
+3.40
+</td>
+<td style="text-align:right;">
+4.01
+</td>
+<td style="text-align:left;">
+&lt;U+2581&gt;&lt;U+2585&gt;&lt;U+2587&gt;&lt;U+2582&gt;&lt;U+2581&gt;
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+sulphates
+</td>
+<td style="text-align:right;">
+0
+</td>
+<td style="text-align:right;">
+1
+</td>
+<td style="text-align:right;">
+0.66
+</td>
+<td style="text-align:right;">
+0.17
+</td>
+<td style="text-align:right;">
+0.33
+</td>
+<td style="text-align:right;">
+0.55
+</td>
+<td style="text-align:right;">
+0.62
+</td>
+<td style="text-align:right;">
+0.73
+</td>
+<td style="text-align:right;">
+2.00
+</td>
+<td style="text-align:left;">
+&lt;U+2587&gt;&lt;U+2585&gt;&lt;U+2581&gt;&lt;U+2581&gt;&lt;U+2581&gt;
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+alcohol
+</td>
+<td style="text-align:right;">
+0
+</td>
+<td style="text-align:right;">
+1
+</td>
+<td style="text-align:right;">
+10.42
+</td>
+<td style="text-align:right;">
+1.07
+</td>
+<td style="text-align:right;">
+8.40
+</td>
+<td style="text-align:right;">
+9.50
+</td>
+<td style="text-align:right;">
+10.20
+</td>
+<td style="text-align:right;">
+11.10
+</td>
+<td style="text-align:right;">
+14.90
+</td>
+<td style="text-align:left;">
+&lt;U+2587&gt;&lt;U+2587&gt;&lt;U+2583&gt;&lt;U+2581&gt;&lt;U+2581&gt;
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+quality
+</td>
+<td style="text-align:right;">
+0
+</td>
+<td style="text-align:right;">
+1
+</td>
+<td style="text-align:right;">
+5.64
+</td>
+<td style="text-align:right;">
+0.81
+</td>
+<td style="text-align:right;">
+3.00
+</td>
+<td style="text-align:right;">
+5.00
+</td>
+<td style="text-align:right;">
+6.00
+</td>
+<td style="text-align:right;">
+6.00
+</td>
+<td style="text-align:right;">
+8.00
+</td>
+<td style="text-align:left;">
+&lt;U+2581&gt;&lt;U+2587&gt;&lt;U+2587&gt;&lt;U+2582&gt;&lt;U+2581&gt;
+</td>
+</tr>
+</tbody>
+</table>
 ``` r
 red_wine %>% 
   pivot_longer(cols = everything(), names_to = "property") %>% 
   ggplot(aes(value, fill = property)) +
-  geom_histogram() +
+  geom_histogram(bins = 25) +
   facet_wrap(~property, scales = "free") +
-  ggeasy::easy_remove_legend()
+  ggeasy::easy_remove_legend() +
+  labs(title = "Distribution of each variable in the dataset")
 ```
-
-    ## `stat_bin()` using `bins = 30`. Pick better value with `binwidth`.
 
 ![](DD_exploratory-analysis_files/figure-markdown_github/unnamed-chunk-4-1.png)
 
+``` r
+# count of Quality ratings?
+red_wine %>%
+  count(quality) %>%
+  mutate(freq = n / sum(n),
+         freq = round(freq, 2)) %>% 
+  kable(caption = "Frequency of quality ratings") %>% 
+  kable_styling(full_width = FALSE, bootstrap_options = "striped")
+```
+
+<table class="table table-striped" style="width: auto !important; margin-left: auto; margin-right: auto;">
+<caption>
+Frequency of quality ratings
+</caption>
+<thead>
+<tr>
+<th style="text-align:right;">
+quality
+</th>
+<th style="text-align:right;">
+n
+</th>
+<th style="text-align:right;">
+freq
+</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align:right;">
+3
+</td>
+<td style="text-align:right;">
+10
+</td>
+<td style="text-align:right;">
+0.01
+</td>
+</tr>
+<tr>
+<td style="text-align:right;">
+4
+</td>
+<td style="text-align:right;">
+53
+</td>
+<td style="text-align:right;">
+0.03
+</td>
+</tr>
+<tr>
+<td style="text-align:right;">
+5
+</td>
+<td style="text-align:right;">
+681
+</td>
+<td style="text-align:right;">
+0.43
+</td>
+</tr>
+<tr>
+<td style="text-align:right;">
+6
+</td>
+<td style="text-align:right;">
+638
+</td>
+<td style="text-align:right;">
+0.40
+</td>
+</tr>
+<tr>
+<td style="text-align:right;">
+7
+</td>
+<td style="text-align:right;">
+199
+</td>
+<td style="text-align:right;">
+0.12
+</td>
+</tr>
+<tr>
+<td style="text-align:right;">
+8
+</td>
+<td style="text-align:right;">
+18
+</td>
+<td style="text-align:right;">
+0.01
+</td>
+</tr>
+</tbody>
+</table>
 ``` r
 # calculate correlations between properties and quality
 cors <- red_wine %>% 
@@ -95,11 +703,23 @@ red_wine %>%
   geom_point(alpha = .075) +
   geom_smooth(method = "lm", se = FALSE) + 
   facet_wrap(~property, scales = "free") +
-  ggeasy::easy_remove_legend()
+  ggeasy::easy_remove_legend() +
+  labs(title = "Relationship between quality and each variable in the dataset",
+       y = "value_of_var")
 ```
 
     ## `geom_smooth()` using formula 'y ~ x'
 
-![](DD_exploratory-analysis_files/figure-markdown_github/unnamed-chunk-5-1.png)
+![](DD_exploratory-analysis_files/figure-markdown_github/unnamed-chunk-6-1.png)
 
 This tell us that of the higher rated wines, `alcohol` had high values and `volatile_acidity` had low values.
+
+``` r
+# check correlation between variables-- any signs of multicollinearity?
+red_wine %>% 
+  cor() %>% 
+  ggcorrplot(title = "Linear relationships between red wine dataset variables", 
+             type = "lower", hc.order = TRUE, lab = TRUE, lab_size = 2.5)
+```
+
+![](DD_exploratory-analysis_files/figure-markdown_github/unnamed-chunk-7-1.png)

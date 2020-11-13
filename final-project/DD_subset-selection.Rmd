@@ -1,0 +1,115 @@
+---
+title: 
+author: Daniel Dulaney
+date: November 11, 2020
+output: github_document
+always_allow_html: true
+editor_options: 
+  chunk_output_type: console
+---
+
+```{r}
+library(tidyverse)
+library(here)
+library(leaps)
+library(patchwork)
+library(kableExtra)
+```
+
+```{r}
+red <- read_csv(here("final-project", "red_wine.csv")) %>% 
+  # replace spaces in variable names with underscores
+  janitor::clean_names()
+```
+
+```{r}
+set.seed(1)
+
+train <- sample(dim(red)[1], dim(red)[1] / 2)
+red.train <- red[train, ]
+red.test <- red[-train, ]
+```
+
+## Best Subset Selection
+
+```{r}
+regfit_full <- regsubsets(quality ~ ., nvmax = 11, method = "exhaustive", data = red.train)
+
+reg_summary_full <- summary(regfit_full)
+
+subset_vars <- reg_summary_full$which %>% 
+  as_tibble()
+# turn this table into one that has values as var names and rows as best subsets 1-11. so like 
+# 1 alcohol
+# 2 alcohol volatile_acidity
+
+subset_vars <- subset_vars %>% 
+  select(-1) %>% 
+  mutate(subset_size = row_number()) %>% 
+  select(subset_size, everything()) %>% 
+  mutate_if(is.logical, as.character) %>% 
+  mutate_if(is.integer, as.character) %>% 
+  mutate_all(~ifelse(. == TRUE, "1", "0"))
+
+for (i in 1:ncol(subset_vars)) {
+  for (j in 1:nrow(subset_vars)) {
+    if (subset_vars[j, i] == "0") {
+      subset_vars[j, i] <- ""
+    }
+    else if (subset_vars[j, i] == "1") {
+      subset_vars[j, i] <- names(subset_vars)[i]
+    }
+  }
+}
+
+# reorder columns
+subset_vars <- subset_vars %>% 
+  mutate(subset_size = row_number()) %>% 
+  select(subset_size, alcohol, volatile_acidity, sulphates, total_sulfur_dioxide, p_h, free_sulfur_dioxide,
+         chlorides, citric_acid, residual_sugar, fixed_acidity, density)
+
+subset_vars %>% 
+  kable(caption = "Variables selected at each subset size, using best subset selection",
+        col.names = c("subset_size", rep("", 11))) %>% 
+  kable_styling(bootstrap_options = "striped", full_width = FALSE)
+```
+
+```{r}
+cbind(subset_size = 1:11, adj_rsq = reg_summary_full$adjr2) %>%
+  as_tibble() %>% 
+  ggplot(aes(subset_size, adj_rsq)) +
+  geom_point(size = 8) +
+  scale_x_continuous(breaks = 1:11) +
+  labs(title = "Best Subset Selection",
+       subtitle = "Adj R^2 for various subset sizes",
+       x = "Subset Size",
+       y = "Adjusted R^2")
+```
+
+## Forward Subset Selection
+
+```{r}
+regfit_forward <- regsubsets(quality ~ ., nvmax = 11, method = "forward", data = red.train)
+
+reg_summary_forward <- summary(regfit_forward)
+
+# only differences: Best Subset chooses 
+```
+
+## Backward Subset Selection
+
+```{r}
+regfit_backward <- regsubsets(quality ~ ., nvmax = 11, method = "backward", data = red.train)
+
+reg_summary_backward <- summary(regfit_backward)
+
+reg_summary_backward
+
+# make plot of rsq vs # var
+```
+
+
+
+
+
+

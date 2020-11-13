@@ -3,6 +3,7 @@ title: Exploratory Analysis of Red Wine Data
 author: Daniel Dulaney
 date: October 31, 2020 
 output: github_document
+always_allow_html: true
 editor_options: 
   chunk_output_type: console
 ---
@@ -11,11 +12,13 @@ editor_options:
 library(tidyverse)
 library(here)
 library(skimr)
+library(ggcorrplot)
+library(kableExtra)
 ```
 
 ```{r}
 red_wine <- read_csv(here("final-project", "red_wine.csv")) %>% 
-  # add underscore to spaces in variable names
+  # replace spaces in variable names with underscores
   janitor::clean_names()
 ```
 
@@ -27,9 +30,20 @@ skim(red_wine)
 red_wine %>% 
   pivot_longer(cols = everything(), names_to = "property") %>% 
   ggplot(aes(value, fill = property)) +
-  geom_histogram() +
+  geom_histogram(bins = 25) +
   facet_wrap(~property, scales = "free") +
-  ggeasy::easy_remove_legend()
+  ggeasy::easy_remove_legend() +
+  labs(title = "Distribution of each variable in the dataset")
+```
+
+```{r}
+# count of Quality ratings?
+red_wine %>%
+  count(quality) %>%
+  mutate(freq = n / sum(n),
+         freq = round(freq, 2)) %>% 
+  kable(caption = "Frequency of quality ratings") %>% 
+  kable_styling(full_width = FALSE, bootstrap_options = "striped")
 ```
 
 ```{r}
@@ -51,10 +65,20 @@ red_wine %>%
   geom_point(alpha = .075) +
   geom_smooth(method = "lm", se = FALSE) + 
   facet_wrap(~property, scales = "free") +
-  ggeasy::easy_remove_legend()
+  ggeasy::easy_remove_legend() +
+  labs(title = "Relationship between quality and each variable in the dataset",
+       y = "value_of_var")
 ```
 
 This tell us that of the higher rated wines, `alcohol` had high values and `volatile_acidity` had low values.
+
+```{r}
+# check correlation between variables-- any signs of multicollinearity?
+red_wine %>% 
+  cor() %>% 
+  ggcorrplot(title = "Linear relationships between red wine dataset variables", 
+             type = "lower", hc.order = TRUE, lab = TRUE, lab_size = 2.5)
+```
 
 
 
