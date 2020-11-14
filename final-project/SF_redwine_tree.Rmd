@@ -3,6 +3,8 @@ title: "Red Wine Data Analysis with Tree-Based Methods"
 author: "Shihwen Fu"
 date: "11/10/2020"
 output: pdf_document
+editor_options: 
+  chunk_output_type: console
 ---
 
 ```{r setup, include=FALSE}
@@ -102,7 +104,9 @@ plot(rf.pred, red.test$quality)
 abline(0,1)
 mean((rf.pred-red.test$quality)^2)
 importance(rf.red)
-varImpPlot(rf.red)
+varImpPlot(rf.red, main = "Variable importance- Random Forest Regressor")
+
+ggsave(here("fr_imp2.png"))
 ```
 
 

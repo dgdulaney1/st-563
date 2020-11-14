@@ -1,0 +1,76 @@
+---
+title: 
+author: Daniel Dulaney
+date: November 11, 2020
+output: html_document
+editor_options: 
+  chunk_output_type: console
+---
+
+```{r}
+library(tidyverse)
+library(here)
+library(e1071)
+```
+
+```{r}
+red <- read_csv(here("final-project", "red_wine.csv")) %>% 
+  # replace spaces in variable names with underscores
+  janitor::clean_names() %>% 
+  mutate(quality_highlow = ifelse(quality <= 5, 0, 1),
+         quality_highlow = as.factor(quality_highlow))
+```
+
+```{r}
+set.seed(1)
+
+train <- sample(dim(red)[1], dim(red)[1] / 2)
+red.train <- red[train, ]
+red.test <- red[-train, ]
+```
+
+## Support Vector Machine
+
+Try with linear and non-linear (e.g. polynomial)
+
+```{r}
+# select optimal cost for kernel = "linear"
+tune_out_linear <- tune(svm, type = "C-classification", quality_highlow ~ ., data = red.train, 
+                        kernel = "linear", ranges = c(.01, .1, 1, 5, 10, 100))
+summary(tune_out_linear)
+
+# select optimal cost for kernel = "polynomial"
+tune_out_poly <- tune(svm, quality_highlow ~ ., data = red.train, kernel = "polynomial",
+                      ranges = c(.01, .1, 1, 5, 10, 100))
+
+summary(tune_out_poly)
+```
+
+```{r}
+# fit on training set
+svm_linear_fit <- svm(quality_highlow ~ ., type = "C-classification", data = red.train, 
+                      kernel = "linear", cost = 1)
+
+svm_linear_fit_reduced <- svm(quality_highlow ~ alcohol + volatile_acidity + suplphates + total_sulfur_dioxide, 
+                              type = "C-classification", 
+                              data = red.train, 
+                              kernel = "linear", cost = 1)
+
+svm_poly_fit <- svm(quality ~ ., data = red.train, kernel = "polynomial", cost = 1)
+```
+
+```{r}
+summary(svm_linear_fit)
+
+# get test set misclassification rates
+preds_full <- predict(svm_linear_fit, red.test)
+
+as.numeric(preds_full) == as.numeric(red.test$quality_highlow)
+
+mean((red.test$quality - predict(svm_linear_fit, red.test))^2)
+```
+
+
+
+
+
